@@ -9,8 +9,7 @@
 
 links:
 - req: FR-001
-  description: Reading the board returns every card grouped into the three fixed columns todo, doing, done, in that order,
-    each column ordered by position.
+  description: Reading the board returns every card grouped into the three fixed columns todo, doing, done, in that order, each column ordered by position.
   capabilities:
   - CAP-003
   contexts:
@@ -97,8 +96,7 @@ links:
   - TestMoveCard_LeftLandsAtEnd
   - TestMoveCard_UnknownIdNotFound
   status: partial
-  notes: Board.Move appends to the target column; POST /api/cards/{id}/move. Codes for same-column/unknown column/malformed
-    body are open (DEC-001).
+  notes: Board.Move appends to the target column; POST /api/cards/{id}/move. Codes for same-column/unknown column/malformed body are open (DEC-001).
 - req: FR-006
   description: A move to a non-neighbouring column is refused and changes nothing.
   capabilities:
@@ -173,8 +171,7 @@ links:
   status: partial
   notes: Dense order INV-004 kept inside the aggregate; EC-002 property tool is open (DEC-015).
 - req: FR-010
-  description: One page shows the three columns with their cards; each card has move left, move right, edit and delete controls;
-    the page has a form to add a card.
+  description: One page shows the three columns with their cards; each card has move left, move right, edit and delete controls; the page has a form to add a card.
   capabilities:
   - CAP-003
   contexts:
@@ -191,6 +188,9 @@ links:
   - TestE2E_AddFormCreatesCardInTodo
   status: partial
   notes: Embedded page rendered from GET /api/board; edge-control behaviour open (DEC-007); E2E browser driver open (DEC-014).
+  derived: [screens.yml]
+  screens: [SCR-001]
+  projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Doing column holds 3 cards, 'e2e/root.spec.ts::Move left on todo card and move right on done card, behaviour pending DEC-007']}
 - req: FR-011
   description: A refused action shows its reason on the page.
   capabilities:
@@ -210,6 +210,9 @@ links:
   - TestE2E_NotFoundReasonShownOnStalePage
   status: partial
   notes: Page shows the reason for the CON-004 code; refresh after a refusal open (DEC-013); E2E browser driver open (DEC-014).
+  derived: [screens.yml]
+  screens: [SCR-001]
+  projected: {spec_tests: [e2e/root.spec.ts::Reason shown for wip_limit_exceeded, e2e/root.spec.ts::Reason shown for invalid_move on a stale page, e2e/root.spec.ts::Reason shown for not_found on a stale page, e2e/root.spec.ts::Reason shown for blank title in add form]}
 - req: NFR-001
   description: max_doing_cards_under_concurrent_moves <= 3 cards under 20 simultaneous moves into doing
   capabilities:
@@ -282,8 +285,7 @@ links:
   status: covered
   notes: Card state lives only in the Board aggregate under its own sync.Mutex.
 - req: CON-003
-  description: 'Endpoints: GET /api/board, POST /api/cards, PATCH /api/cards/{id}, POST /api/cards/{id}/move with body {"to":
-    "<column>"}, DELETE /api/cards/{id}.'
+  description: 'Endpoints: GET /api/board, POST /api/cards, PATCH /api/cards/{id}, POST /api/cards/{id}/move with body {"to": "<column>"}, DELETE /api/cards/{id}.'
   contexts:
   - CTX-001
   components:
@@ -305,8 +307,7 @@ links:
   status: covered
   notes: One JSON error helper in internal/httpapi emits {code}.
 - req: CON-005
-  description: The page is plain HTML, CSS and JavaScript with no build step, embedded with go:embed and served by the same
-    process.
+  description: The page is plain HTML, CSS and JavaScript with no build step, embedded with go:embed and served by the same process.
   contexts:
   - CTX-001
   components:
