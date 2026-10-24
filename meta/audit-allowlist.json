@@ -1,0 +1,10 @@
+{
+  "vulnerabilities": [],
+  "licenses": [
+    {
+      "id": "MIT",
+      "reason": "licence of the board-demo root module (LICENSE, chosen by the owner 2026-10-24); permissive",
+      "expires": "2027-10-24"
+    }
+  ]
+}
