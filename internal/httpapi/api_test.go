@@ -350,7 +350,7 @@ func TestMoveCard_20ConcurrentMovesKeepDoingAtMost3(t *testing.T) {
 				t.Errorf("POST: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			raw, _ := io.ReadAll(resp.Body)
 			key := "ok"
 			if resp.StatusCode != http.StatusOK {

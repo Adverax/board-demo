@@ -48,7 +48,7 @@ func TestServe_AnswersRoutesAndShutsDownOnCancel(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		raw, _ := io.ReadAll(resp.Body)
 		return resp.StatusCode, string(raw)
 	}
@@ -62,7 +62,7 @@ func TestServe_AnswersRoutesAndShutsDownOnCancel(t *testing.T) {
 	if err != nil || resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /api/board = %v, %v", resp, err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	cancel()
 	select {

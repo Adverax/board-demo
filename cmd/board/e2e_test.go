@@ -332,7 +332,7 @@ func (br *browser) expectRefusal(code, reason string) notice {
 
 func wantTitles(t *testing.T, br *browser, column string, want ...string) {
 	t.Helper()
-	if got := br.titles(column); !slices.Equal(got, want) && !(len(got) == 0 && len(want) == 0) {
+	if got := br.titles(column); !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0) {
 		t.Fatalf("column %s shows %q, want %q", column, got, want)
 	}
 }
@@ -751,7 +751,7 @@ func startBinary(t *testing.T, bin, port, listenPort string) string {
 		case <-tick.C:
 		}
 		if resp, err := binaryClient.Get(base + "/"); err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return base
 		}
 		if time.Now().After(deadline) {
@@ -777,7 +777,7 @@ func wantBoardPage(t *testing.T, base string) {
 			t.Fatal(err)
 		}
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), marker) {
 			t.Fatalf("GET %s = %d, body without %q", path, resp.StatusCode, marker)
 		}
