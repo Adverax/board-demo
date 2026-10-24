@@ -224,8 +224,7 @@ links:
   - TestE2E_PageShowsThreeColumnsWithCards
   - TestE2E_CardShowsFourControls
   - TestE2E_AddFormCreatesCardInTodo
-  status: partial
-  notes: Embedded page rendered from GET /api/board; edge move controls rendered disabled (ADR-0008); page re-reads GET /api/board after every action (ADR-0009); E2E via chromedp in TestE2E_* Go tests (ADR-0010).
+  status: covered
   derived: [screens.yml]
   screens: [SCR-001]
   projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board re-read after every action, succeeded or refused, no polling (ASM-0004)', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Edited card shows its new title, 'e2e/root.spec.ts::Card deleted, remaining cards keep dense positions', e2e/root.spec.ts::Card moved to the adjacent column, e2e/root.spec.ts::Doing column holds 3 cards, e2e/root.spec.ts::Move left on todo card and move right on done card rendered disabled]}
@@ -248,8 +247,15 @@ links:
   - TestE2E_InvalidTitleReasonShownOnPage
   - TestE2E_InvalidMoveReasonShownOnPage
   - TestE2E_NotFoundReasonShownOnStalePage
-  status: partial
-  notes: Page shows the reason for the CON-004 code; after every action, succeeded or refused, the page shows any reason and re-reads GET /api/board (ADR-0009); E2E via chromedp in TestE2E_* Go tests (ADR-0010).
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-003, 2026-10-24): covering tests found in
+    the tracked code on that date — TestE2E_WipRefusalShownOnPage,
+    TestE2E_InvalidTitleReasonShownOnPage,
+    TestE2E_InvalidMoveReasonShownOnPage,
+    TestE2E_NotFoundReasonShownOnStalePage. Derived by git grep -w over the
+    code (architecture model and docs excluded) rather than asserted by
+    hand.
   derived: [screens.yml]
   screens: [SCR-001]
   projected: {spec_tests: [e2e/root.spec.ts::Reason shown for wip_limit_exceeded, e2e/root.spec.ts::Reason shown for invalid_move on a stale page, e2e/root.spec.ts::Reason shown for not_found on a stale page, e2e/root.spec.ts::Reason shown for blank title in add form]}
@@ -304,8 +310,12 @@ links:
   tests:
   - TestE2E_BinaryServesPageOnDefaultPort
   - TestE2E_BinaryHonoursPortVariable
-  status: partial
-  notes: The binary itself started on PORT or 8080; E2E via chromedp in TestE2E_* Go tests (ADR-0010).
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-003, 2026-10-24): covering tests found in
+    the tracked code on that date — TestE2E_BinaryServesPageOnDefaultPort,
+    TestE2E_BinaryHonoursPortVariable. Derived by git grep -w over the code
+    (architecture model and docs excluded) rather than asserted by hand.
 - req: CON-001
   description: Go 1.26 and standard library net/http for the HTTP layer.
   contexts:
