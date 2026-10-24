@@ -3,19 +3,24 @@
 # tier: medium
 open:
   - id: DEC-001
-    question: 'What error code does a move to the card''s own column, or to an unknown column name, return? The brief lists only validation_failed, not_found, wip_limit_exceeded, invalid_move.'
+    question: 'What error code does a move return when the target is the card''s own column, an unknown column name, a missing or non-string "to", or a malformed body? And which check wins when several apply (for example a full doing is the target but the move is also invalid)? The brief lists only validation_failed, not_found, wip_limit_exceeded, invalid_move.'
     surfaced_from:
       kind: ambiguity
-      ref: [FR-005, FR-006]
+      ref: [FR-005, FR-006, FR-007, CON-004]
+    default: invalid_move_for_all_moves
     alternatives:
-      - label: invalid_move
-        summary: Both cases are an invalid move.
-        pros: [Reuses a listed code, no new code]
+      - label: invalid_move_for_all_moves
+        summary: Same-column and unknown column name are invalid_move; a missing or non-string "to" or malformed body is validation_failed. Precedence is not_found, then validation_failed, then invalid_move, then wip_limit_exceeded.
+        pros: [Reuses listed codes, "wip_limit_exceeded only for an otherwise valid adjacent move, e.g. done to doing into a full doing"]
         cons: [An unknown column name is arguably a malformed body]
       - label: split_codes
-        summary: Same-column is invalid_move, unknown column is validation_failed.
+        summary: Same-column is invalid_move; any unknown column name, missing or non-string "to" and malformed body is validation_failed. Same precedence order.
         pros: [Distinguishes bad input from a bad move]
         cons: [Two rules to document and test]
+      - label: wip_first
+        summary: A target of doing that is full returns wip_limit_exceeded before adjacency is checked.
+        pros: [Matches a literal reading of 'a move into a full doing is refused']
+        cons: [A todo-to-done style non-adjacent move into a full doing is reported with the wrong reason; needs a case for same-column doing to doing]
     criteria_refs: [CON-004]
     status: open
     blocks: [none]
@@ -85,5 +90,45 @@ open:
         pros: [Checkable constraint]
         cons: [Widens scope]
     criteria_refs: [CON-006]
+    status: open
+    blocks: [none]
+  - id: DEC-006
+    question: 'EC-001 says doing "never holds more than 3 cards at any observable instant", which is stronger than the brief (the column never exceeds 3 after 20 simultaneous moves). Which guarantee is intended?'
+    surfaced_from:
+      kind: ambiguity
+      ref: [EC-001, AC-018, NFR-001]
+    default: settled_snapshots
+    alternatives:
+      - label: settled_snapshots
+        summary: Narrow EC-001 to every snapshot read and the state after the moves settle.
+        pros: [Matches the brief and the 20-move test, testable without instrumenting internals]
+        cons: [Says nothing about a transient state inside a move]
+      - label: reads_under_mutex
+        summary: Keep the wording and require every read to take the same mutex as moves, so no read can see more than 3.
+        pros: [Strong guarantee, a property test can poll reads during moves]
+        cons: [Stronger than the brief, constrains implementation of reads]
+    criteria_refs: [NFR-001, CON-002]
+    status: open
+    blocks: [none]
+  - id: DEC-007
+    question: 'What does the page do with "move left" on a todo card and "move right" on a done card? The brief gives every card both controls and is silent on the edges.'
+    surfaced_from:
+      kind: ambiguity
+      ref: [FR-010, FR-011, FR-006]
+    default: disabled
+    alternatives:
+      - label: hidden
+        summary: The control is not rendered at the edge.
+        pros: [No dead control]
+        cons: [Contradicts 'each card has move left and move right controls' (AC-025)]
+      - label: disabled
+        summary: The control is rendered but disabled at the edge.
+        pros: [Keeps four controls on every card, refusal never needs a request]
+        cons: [A disabled control is not covered by the refusal reason rule]
+      - label: sends_request
+        summary: The control is active, sends the request and shows invalid_move on the page.
+        pros: [Uniform behaviour, exercises the FR-011 reason display]
+        cons: [Needs a target column name for a move off the board edge, which the brief does not define]
+    criteria_refs: [CON-004]
     status: open
     blocks: [none]

@@ -145,6 +145,13 @@ functional:
         kind: concurrency
         invariant: INV-002
         test: TestMoveCard_20ConcurrentMovesKeepDoingAtMost3
+      - id: AC-033
+        given: "doing holds 3 cards and card A is in done"
+        when: "POST /api/cards/A/move with to 'doing'"
+        then: "returns 409 with code wip_limit_exceeded, doing holds 3 cards and A stays in done"
+        kind: negative
+        invariant: INV-002
+        test: TestMoveCard_LeftIntoFullDoingRefused
     engineering_constraints:
       - id: EC-001
         statement: For any number of simultaneous moves into doing, the doing column never holds more than 3 cards at any observable instant
@@ -176,6 +183,21 @@ functional:
         kind: negative
         invariant: INV-001
         test: TestTitle_WhitespaceOnlyRejectedOnEdit
+      - id: AC-036
+        given: "card A with title 'Old'"
+        when: "PATCH /api/cards/A with a title of 81 characters"
+        then: "returns code validation_failed and the title remains 'Old'"
+        kind: boundary
+        invariant: INV-001
+        test: TestTitle_81CharsRejectedOnEdit
+      - id: AC-037
+        given: "card A with title 'Old'"
+        when: "PATCH /api/cards/A with a title of exactly 80 characters"
+        then: "returns 200 and the title is the 80-character value"
+        kind: boundary
+        invariant: INV-001
+        test: TestTitle_80CharsAcceptedOnEdit
+
   - id: FR-009
     statement: "Within every column card positions are 0..n-1 without gaps or duplicates after any operation."
     source: [US-002, US-004, US-005]
@@ -238,6 +260,18 @@ functional:
         then: "the page shows the reason for code validation_failed and no card is added"
         kind: negative
         test: TestE2E_InvalidTitleReasonShownOnPage
+      - id: AC-034
+        given: "the page shows card A in doing, but another member has since moved A to todo"
+        when: "move right is clicked on A (the page sends to 'done')"
+        then: "the page shows the reason for code invalid_move and A stays in todo"
+        kind: negative
+        test: TestE2E_InvalidMoveReasonShownOnPage
+      - id: AC-035
+        given: "card A is shown on the page and another member has already deleted A"
+        when: "move right is clicked on A"
+        then: "the page shows the reason for code not_found"
+        kind: negative
+        test: TestE2E_NotFoundReasonShownOnStalePage
 
 non_functional:
   - id: NFR-001
