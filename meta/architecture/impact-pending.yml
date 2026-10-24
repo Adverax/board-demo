@@ -65,3 +65,10 @@ entries:
   sources_absent:
   - meta/architecture/trace.yml
   - meta/kanban/cards
+- id: NFR_COVERAGE
+  at: '2026-10-24T06:41:01Z'
+  commit: 44c345f
+  commit_reason: ok
+  radius_count: 0
+  radius: []
+  sources_absent: []

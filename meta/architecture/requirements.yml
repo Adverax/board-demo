@@ -333,23 +333,23 @@ nfr_coverage:
     status: not_applicable
     reason: "CON-002: in-memory storage lost on restart, single local process; an uptime target does not apply"
   compliance:
-    status: surfaced
-    ref: DEC-004
+    status: not_applicable
+    reason: "no regulatory or organizational rule applies to the demo (ADR-0014)"
   cost:
-    status: surfaced
-    ref: DEC-005
+    status: not_applicable
+    reason: "no hosting or resource budget applies to the demo (ADR-0015)"
   maintainability:
     status: covered
     refs: [NFR-002]
   observability:
-    status: surfaced
-    ref: DEC-003
+    status: not_applicable
+    reason: "no logging or metrics requirement for the demo (ADR-0013)"
   operability:
     status: covered
     refs: [NFR-003]
   performance:
-    status: surfaced
-    ref: DEC-002
+    status: not_applicable
+    reason: "no latency or throughput target for the demo (ADR-0012)"
   scalability:
     status: covered
     refs: [NFR-001]
