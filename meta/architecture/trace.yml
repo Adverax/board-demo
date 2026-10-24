@@ -190,7 +190,7 @@ links:
   notes: Embedded page rendered from GET /api/board; edge-control behaviour open (DEC-007); E2E browser driver open (DEC-014).
   derived: [screens.yml]
   screens: [SCR-001]
-  projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Doing column holds 3 cards, 'e2e/root.spec.ts::Move left on todo card and move right on done card, behaviour pending DEC-007']}
+  projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Edited card shows its new title, 'e2e/root.spec.ts::Card deleted, remaining cards keep dense positions', e2e/root.spec.ts::Card moved to the adjacent column, e2e/root.spec.ts::Doing column holds 3 cards, 'e2e/root.spec.ts::Move left on todo card and move right on done card, behaviour pending DEC-007']}
 - req: FR-011
   description: A refused action shows its reason on the page.
   capabilities:
