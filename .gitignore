@@ -1,6 +1,8 @@
 .idea/
 *.db
 /bin/
+meta/agent-journal.yml
+meta/gate-runs.yml
 
 # ─── forge ─────────────────────────────── git_tracking.preset: solo ───
 # Regenerate: /forge:init gitignore
