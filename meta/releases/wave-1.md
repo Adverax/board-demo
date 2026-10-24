@@ -20,3 +20,6 @@
 
 ## Migrations
 - none
+
+## Metrics
+- snapshot not captured: `forge:metrics` refused (exit 2) because the signal definitions registry `meta/metrics/signal-definitions.yml` does not exist; the project has not adopted the metrics layer. Nothing was lost: the registry has to exist before any wave can be captured.
