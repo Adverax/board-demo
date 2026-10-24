@@ -1,0 +1,20 @@
+# generated_by: architect-adr-writer
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+# Platform baseline: written only when a kind: platform DEC resolves; the ADR holds the why.
+platform:
+  style:
+    value: "single-process monolith; synchronous in-process calls, no messaging backbone"
+    label: single_process_monolith
+    decided_by: ADR-0001
+    status: default_accepted
+  stack:
+    value: "Go 1.26 + net/http standard ServeMux + encoding/json + embed; in-memory board under sync.Mutex; no third-party runtime deps"
+    label: go_stdlib_inmemory
+    decided_by: ADR-0002
+    status: default_accepted
+  runtime:
+    value: "bare binary on the host (go build / go run), listens on PORT or 8080; no container"
+    label: bare_binary_on_host
+    decided_by: ADR-0003
+    status: default_accepted

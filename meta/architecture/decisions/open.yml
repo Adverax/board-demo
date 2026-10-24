@@ -92,24 +92,6 @@ open:
     criteria_refs: [CON-006]
     status: open
     blocks: [none]
-  - id: DEC-006
-    question: 'EC-001 says doing "never holds more than 3 cards at any observable instant", which is stronger than the brief (the column never exceeds 3 after 20 simultaneous moves). Which guarantee is intended?'
-    surfaced_from:
-      kind: ambiguity
-      ref: [EC-001, AC-018, NFR-001]
-    default: settled_snapshots
-    alternatives:
-      - label: settled_snapshots
-        summary: Narrow EC-001 to every snapshot read and the state after the moves settle.
-        pros: [Matches the brief and the 20-move test, testable without instrumenting internals]
-        cons: [Says nothing about a transient state inside a move]
-      - label: reads_under_mutex
-        summary: Keep the wording and require every read to take the same mutex as moves, so no read can see more than 3.
-        pros: [Strong guarantee, a property test can poll reads during moves]
-        cons: [Stronger than the brief, constrains implementation of reads]
-    criteria_refs: [NFR-001, CON-002]
-    status: open
-    blocks: [none]
   - id: DEC-007
     question: 'What does the page do with "move left" on a todo card and "move right" on a done card? The brief gives every card both controls and is silent on the edges.'
     surfaced_from:
@@ -132,3 +114,72 @@ open:
     criteria_refs: [CON-004]
     status: open
     blocks: [none]
+  - id: DEC-013
+    question: 'What do the mutating endpoints (POST /api/cards, PATCH /api/cards/{id}, POST /api/cards/{id}/move, DELETE /api/cards/{id}) return on success, and how does the page bring itself up to date after an action, including after a refusal (FR-011, AC-034, AC-035)? CON-003 fixes the routes and request body of a move but not the response bodies.'
+    surfaced_from:
+      kind: ambiguity
+      ref: [CON-003, FR-010, FR-011, AC-034, AC-035]
+    default: card_response_page_refetches
+    alternatives:
+      - label: card_response_page_refetches
+        summary: POST and PATCH and move return the affected card as JSON, DELETE returns 204; after every action, succeeded or refused, the page shows any reason and re-reads GET /api/board and re-renders.
+        pros: ["Conventional REST bodies", "The page always shows server truth after a click, which makes AC-034/AC-035 outcomes visible", "No client-side copy of the rules"]
+        cons: ["Two requests per action", "Re-reading after a refusal is a small refresh that ASM-0004 (no polling) should be checked against"]
+      - label: board_response
+        summary: Every mutation returns the full board in the GET /api/board shape; the page re-renders from that response.
+        pros: ["One round trip per action, one render path"]
+        cons: ["Unconventional REST bodies", "A refusal still returns only the error object, so the page needs a second path after a refusal anyway"]
+      - label: card_response_local_patch
+        summary: Mutations return the affected card; the page patches its DOM from the response and never re-reads the board until reload.
+        pros: ["Minimal traffic"]
+        cons: ["The page drifts from server state when other members act", "Page must replicate dense-order placement logic"]
+    criteria_refs: [CON-003, CON-004, FR-011]
+    status: open
+    blocks: [decompose]
+    depends_on: []
+  - id: DEC-014
+    question: 'What drives the browser for the end-to-end tests (AC-024..AC-028, AC-034, AC-035, NFR-003: "every capability works end to end in a browser"), given that the tests are named as Go tests (TestE2E_*) and CON-005 forbids a build step for the page?'
+    surfaced_from:
+      kind: technology
+      ref: [NFR-003, FR-010, FR-011, CON-005, CON-008]
+    default: chromedp_go
+    alternatives:
+      - label: chromedp_go
+        summary: Go tests drive a headless Chrome through the DevTools protocol (chromedp) against the binary or an httptest server.
+        pros: ["E2E tests stay in go test ./... with the TestE2E_ names already in requirements.yml", "No Node toolchain"]
+        cons: ["Requires Chrome or Chromium on the machine and in CI", "Test-only third-party dependency"]
+      - label: playwright
+        summary: Playwright (via playwright-go or a Node test project) drives Chromium against the running binary.
+        pros: ["Mature auto-waiting and multi-browser support"]
+        cons: ["Installs a Node-based driver and browsers; a second toolchain for a Go demo", "Test names would live outside go test unless wrapped by playwright-go"]
+      - label: http_level_only
+        summary: Go tests check the served HTML and the API with net/http/httptest; the page's JavaScript is not executed.
+        pros: ["No browser or dependency at all"]
+        cons: ["Does not meet NFR-003 or AC-027/AC-028: refusals shown on the page are JavaScript behaviour"]
+    criteria_refs: [NFR-003, CON-005, CON-008]
+    status: open
+    blocks: [decompose]
+    depends_on: [DEC-009]
+  - id: DEC-015
+    question: 'Which tool generates and shrinks the random operation sequences for the property tests (NFR-002 / AC-030 / EC-002 dense order, EC-001 WIP under concurrency)? CON-001 restricts only the HTTP layer, so a test-only dependency is allowed but not required.'
+    surfaced_from:
+      kind: technology
+      ref: [NFR-002, EC-001, EC-002, CON-008]
+    default: rapid
+    alternatives:
+      - label: testing_quick
+        summary: Standard library testing/quick generating operation slices through a custom Generate method.
+        pros: ["No dependency"]
+        cons: ["No shrinking, so a failing sequence is reported at full length", "Package is frozen and documented as such"]
+      - label: rapid
+        summary: pgregory.net/rapid state-machine testing with add, move, edit and delete actions and a dense-order check after each step.
+        pros: ["Built-in shrinking to a minimal failing sequence, readable in a live demo", "State-machine mode fits 'after any operation'"]
+        cons: ["Test-only third-party dependency"]
+      - label: seeded_math_rand
+        summary: Hand-written loop over math/rand/v2 with a logged seed applying N random operations.
+        pros: ["No dependency, fully transparent"]
+        cons: ["No shrinking; reproducing a failure needs the seed", "Generator code to maintain"]
+    criteria_refs: [NFR-002, CON-008]
+    status: open
+    blocks: [decompose]
+    depends_on: [DEC-011]

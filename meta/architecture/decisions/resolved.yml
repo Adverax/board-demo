@@ -1,0 +1,153 @@
+# generated_by: architect-adr-writer
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+resolved:
+  - id: DEC-008
+    question: 'Platform baseline, axis style: what is the architecture style and topology of the board service? CON-006 (one binary) and CON-005 (the page is embedded and served by the same process) already fix the answer to a single-process monolith with synchronous in-process calls and no messaging backbone; this DEC records that answer for explicit confirmation so platform.yml can be written, it does not reopen the constraint.'
+    surfaced_from:
+      kind: platform
+      ref: [CTX-001, CON-005, CON-006]
+    axis: style
+    default: single_process_monolith
+    alternatives:
+      - label: single_process_monolith
+        summary: One Go process holds the board, the JSON API under /api and the embedded page; every call is a synchronous in-process function call, no events, no broker.
+        pros: ["Forced by CON-006 and CON-005: one binary that also serves the page", "One context CTX-001 and one aggregate AGG-001, so there is no seam that would earn a second deployable", "Zero operational surface for a demo"]
+        cons: ["No independent scaling of API and page, which nothing in the brief asks for"]
+      - label: split_api_and_static_frontend
+        summary: The JSON API runs as one process and the page is served separately (static host or second process).
+        pros: ["Frontend could be redeployed without the API"]
+        cons: ["Violates CON-006 (one binary) and CON-005 (served by the same process)", "Adds CORS and a second deployable for no requirement"]
+    criteria_refs: [CON-005, CON-006, CON-002]
+    status: resolved
+    resolved_by: ADR-0001
+    resolution_label: single_process_monolith
+    date: 2026-10-24
+    blocks: [synthesis]
+    depends_on: []
+    prior_pattern:
+      dp_id: DP-006
+      resolution_label: coarse_start
+      summary: "Start with a coarse set of deployables, enforcing context seams by package structure."
+      rationale: "Deployable count multiplies fixed operational cost against team size; a context earns its own deployable only through a distinct runtime profile."
+      standing: recommended
+      last_outcome: null
+  - id: DEC-009
+    question: 'Platform baseline, axis stack: what language, HTTP framework and storage baseline is the service written in? CON-001 fixes Go 1.26 with standard library net/http and CON-002 fixes in-memory storage guarded by a mutex; this DEC records that answer for explicit confirmation (and the routing detail: the stdlib ServeMux with method and path-wildcard patterns covers every CON-003 route). The ADR resolving it is also where the API posture (OpenAPI-first spec or a scope exemption, since the only consumer is the embedded page) should be recorded.'
+    surfaced_from:
+      kind: platform
+      ref: [CON-001, CON-002, CON-003, CON-005]
+    axis: stack
+    default: go_stdlib_inmemory
+    alternatives:
+      - label: go_stdlib_inmemory
+        summary: Go 1.26, net/http with the standard ServeMux ("POST /api/cards/{id}/move" style patterns), encoding/json, embed for the page, in-memory board guarded by sync.Mutex; no third-party runtime dependencies.
+        pros: ["Exactly what CON-001 and CON-002 state", "ServeMux method and wildcard patterns cover all five CON-003 endpoints without a router", "Empty go.mod require block for the runtime, nothing to audit"]
+        cons: ["Hand-written JSON error helper for the CON-004 code field"]
+      - label: go_nethttp_with_router
+        summary: Go 1.26 with a net/http-compatible third-party router (chi class) and the same in-memory storage.
+        pros: ["Middleware and route grouping out of the box"]
+        cons: ["Contradicts CON-001 (standard library net/http for the HTTP layer)", "Adds a dependency for five routes the stdlib already handles"]
+    criteria_refs: [CON-001, CON-002, CON-003]
+    status: resolved
+    resolved_by: ADR-0002
+    resolution_label: go_stdlib_inmemory
+    date: 2026-10-24
+    blocks: [decompose]
+    depends_on: [DEC-008]
+  - id: DEC-010
+    question: 'Platform baseline, axis runtime: where and how does the binary run for the demo and for the end-to-end release check (NFR-003)? CON-006 fixes one binary with the port taken from PORT (default 8080) and CON-002 means there is no state to mount; what remains open is whether the binary is run directly on the host or wrapped in a container image.'
+    surfaced_from:
+      kind: platform
+      ref: [CON-006, CON-002, NFR-003]
+    axis: runtime
+    default: bare_binary_on_host
+    alternatives:
+      - label: bare_binary_on_host
+        summary: The binary is built with go build (or started with go run) and runs directly on the developer or demo machine, listening on PORT or 8080; no container, no orchestrator.
+        pros: ["Matches CON-006 literally and AC-031/AC-032 test it directly", "Nothing to install beyond the Go toolchain", "In-memory state (CON-002) needs no volumes or service discovery"]
+        cons: ["Host must have a matching Go toolchain to build"]
+      - label: container_image
+        summary: The same single binary is packaged into a minimal container image (distroless or scratch) and run with docker run -e PORT.
+        pros: ["Reproducible run without a local Go toolchain", "Ready for any container host later"]
+        cons: ["Adds a Dockerfile and a container runtime the brief never mentions", "Port mapping adds a second place where PORT can disagree"]
+    criteria_refs: [CON-006, CON-002, NFR-003]
+    status: resolved
+    resolved_by: ADR-0003
+    resolution_label: bare_binary_on_host
+    date: 2026-10-24
+    blocks: [synthesis]
+    depends_on: [DEC-008]
+  - id: DEC-011
+    question: 'How is the single binary laid out in Go packages? The board rules (INV-001..005), the HTTP/JSON layer (CON-003, CON-004) and the embedded page (CON-005) can live in one package or in separate packages; the choice shapes the C4 component view and where the property tests (NFR-002, EC-002) attach.'
+    surfaced_from:
+      kind: technology
+      ref: [CTX-001, AGG-001, CON-005, CON-006]
+    default: layered_internal_packages
+    alternatives:
+      - label: layered_internal_packages
+        summary: cmd/board (main, PORT handling), internal/board (Board aggregate, rules, no net/http import), internal/httpapi (handlers, JSON errors, routing), web/ (static files plus the go:embed declaration).
+        pros: ["Domain rules testable and property-tested without HTTP", "Component view maps one-to-one onto packages", "httpapi cannot bypass the aggregate's invariants"]
+        cons: ["Four packages for a small service", "go:embed cannot reach parent directories, so the embed declaration must sit in or above web/"]
+      - label: flat_main_package
+        summary: Everything in package main at the module root (main.go, board.go, handlers.go, index.html embedded alongside).
+        pros: ["Smallest possible layout, fastest to read in a live demo"]
+        cons: ["Domain and HTTP share one namespace, so nothing stops a handler mutating cards directly", "Property tests live in package main"]
+      - label: domain_plus_main
+        summary: internal/board holds the aggregate; package main holds handlers, routing, the embed and startup.
+        pros: ["Keeps the rules isolated with one extra package only"]
+        cons: ["HTTP and startup concerns mixed in main; handler tests need main package internals"]
+    criteria_refs: [CON-005, CON-006, CON-008, NFR-002]
+    status: resolved
+    resolved_by: ADR-0004
+    resolution_label: layered_internal_packages
+    date: 2026-10-24
+    blocks: [synthesis]
+    depends_on: [DEC-008]
+  - id: DEC-006
+    question: 'EC-001 says doing "never holds more than 3 cards at any observable instant", which is stronger than the brief (the column never exceeds 3 after 20 simultaneous moves). Which guarantee is intended?'
+    surfaced_from:
+      kind: ambiguity
+      ref: [EC-001, AC-018, NFR-001]
+    default: settled_snapshots
+    alternatives:
+      - label: settled_snapshots
+        summary: Narrow EC-001 to every snapshot read and the state after the moves settle.
+        pros: [Matches the brief and the 20-move test, testable without instrumenting internals]
+        cons: [Says nothing about a transient state inside a move]
+      - label: reads_under_mutex
+        summary: Keep the wording and require every read to take the same mutex as moves, so no read can see more than 3.
+        pros: [Strong guarantee, a property test can poll reads during moves]
+        cons: [Stronger than the brief, constrains implementation of reads]
+    criteria_refs: [NFR-001, CON-002]
+    status: resolved
+    resolved_by: ADR-0005
+    resolution_label: settled_snapshots
+    date: 2026-10-24
+    blocks: [none]
+  - id: DEC-012
+    question: 'Where does the mutex of CON-002 live, and what does one critical section cover, so that the check-then-act of a move (adjacency INV-003, WIP limit INV-002, dense reorder INV-004) is atomic under 20 simultaneous moves (AC-018, NFR-001, EC-001)? Related to DEC-006: whichever read guarantee is chosen, reads also need the lock to be race-free.'
+    surfaced_from:
+      kind: consistency
+      ref: [AGG-001, INV-002, INV-003, INV-004, NFR-001, EC-001]
+    default: lock_inside_aggregate
+    alternatives:
+      - label: lock_inside_aggregate
+        summary: The Board type owns a sync.Mutex; every exported method (Snapshot, Add, Edit, Delete, Move) locks for its whole body, so validate, decide and apply happen in one critical section and Snapshot returns a copy.
+        pros: ["Impossible to call the aggregate without the lock", "AC-018 holds by construction: at most 3 moves see a non-full doing", "One type to reason about in a demo"]
+        cons: ["The rule code and the locking are interleaved; pure-function property tests exercise it through the locked API"]
+      - label: pure_aggregate_locked_store
+        summary: Board is a plain value with pure methods returning a new state or a refusal; a store type holds the mutex and runs each command as lock, apply, unlock.
+        pros: ["Rules are pure and directly property-testable (NFR-002)", "Locking policy in exactly one place"]
+        cons: ["One more type; a caller holding the bare Board can bypass the lock unless it is unexported"]
+      - label: lock_in_http_handlers
+        summary: Handlers share a package-level mutex and lock around each request's call into an unsynchronised Board.
+        pros: ["Domain code has no concurrency concern at all"]
+        cons: ["Every new handler must remember the lock; a missed one breaks EC-001", "Domain is unsafe for any non-HTTP caller, including tests"]
+    criteria_refs: [CON-002, NFR-001, NFR-002, EC-001]
+    status: resolved
+    resolved_by: ADR-0006
+    resolution_label: lock_inside_aggregate
+    date: 2026-10-24
+    blocks: [synthesis]
+    depends_on: [DEC-011]
