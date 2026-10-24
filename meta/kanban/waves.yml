@@ -1,0 +1,24 @@
+# Per-wave checkpoints carried from meta/architecture/handoff.md increments (decompose 8c).
+# `run` demands each checkpoint at wave end; status: pending | passed | waived.
+waves:
+  - wave: 1
+    increment: 1
+    cards: [CARD-001]
+    checkpoint: "`go test -race ./...` passes, including the test that sends 20 simultaneous moves into `doing` and never sees more than 3 cards, and the property test that keeps positions dense after any random sequence of add, move, edit and delete; `go run ./cmd/board` answers `GET /api/board`, `POST /api/cards` and `POST /api/cards/{id}/move` on `PORT` (default 8080) with the stable JSON error codes."
+    collapses: [NFR-001, NFR-002, EC-001, EC-002]
+    rollback: "revert the wave merges; there is no persisted state and nothing published, so no point of no return."
+    status: pending
+  - wave: 2
+    increment: 2
+    cards: [CARD-002]
+    checkpoint: "every API acceptance criterion passes (title rules incl. 80/81 characters on add and edit, delete closes the gap, unknown id is `not_found`), and the five endpoints of CON-003 are all served by the standard ServeMux."
+    collapses: [ASM-0001, ASM-0002, ASM-0003, FR-003, FR-004, FR-008]
+    rollback: "revert the wave merges; Increment 1 stays usable."
+    status: pending
+  - wave: 3
+    increment: 3
+    cards: [CARD-003]
+    checkpoint: "with the binary running on `PORT=9090`, a browser run of the planned `e2e/root.spec.ts` states passes: board render, add form, edit saved, card deleted, card moved, WIP-limit refusal, `invalid_move` and `not_found` reasons on a stale page, blank-title refusal. (Executed as the chromedp `TestE2E_*` Go tests named in CARD-003's acceptance criteria, ADR-0010.)"
+    collapses: [ASM-0004, NFR-003]
+    rollback: "revert the wave merges; the API from Increments 1-2 is unaffected."
+    status: pending
