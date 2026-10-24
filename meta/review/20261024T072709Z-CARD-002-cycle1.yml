@@ -1,0 +1,127 @@
+version: 1
+generated_at: "2026-10-24T07:28:52Z"
+target: "card/002-card-editing-api-contract (bee0526 on main cf14b6a)"
+overall_score: 9.0
+risk_level: low
+review_lane: fast
+reviewer: forge:review
+reviewer_version: "2026.10.10"
+model: "opus"
+
+task_contract_verdict: pass
+system_contract_verdict: pass
+overall_verdict: pass
+
+security: applicable (0 findings)
+
+coverage:
+  read:
+    - internal/board/board.go
+    - internal/board/board_test.go
+    - internal/board/property_test.go
+    - internal/board/README.md
+    - internal/httpapi/api.go
+    - internal/httpapi/edit_delete_test.go
+    - internal/httpapi/README.md
+    - meta/architecture/requirements.yml (FR-003, FR-004, FR-008 AC, CON-003)
+    - meta/architecture/decisions/adr/0007-move-error-codes-precedence.md
+    - meta/architecture/decisions/adr/0009-mutation-responses-page-refetch.md
+    - meta/architecture/trace.yml (test refs)
+  not_reached:
+    - internal/httpapi/api_test.go (read only for shared helpers str/arrange; unchanged by this diff)
+    - cmd/board (unchanged by this diff)
+  confidence: high
+metrics:
+  diff: { files: 7, added: 549, removed: 20 }
+  tests_cover_change: true
+  tests_fresh_run: "go build ./... ok; go vet ./... ok; make test ok; make test-race ok; go test -count=1 -race ./... ok"
+  mutation_spot_check: "3/3 killed on a scratch copy (validTitle: > to >=; RuneCount to len; drop empty-check)"
+  unmeasured:
+    max_fan_in: "tooling_failure — impact_set.py not run in this review; hand count: board.MaxTitleLength is new (callers: board.go validTitle + tests only)"
+    cochange_missing: "no_eligible_fact — repository has only a handful of commits; no meaningful co-change history"
+    churn_defect_density: "no_eligible_fact — repository history too short"
+
+system_contract:
+  rules_checked: 10
+  holds: 10
+  unchecked: 0
+  violated: 0
+  verdicts:
+    - "ADR-0002/R1 ✓ holds — go.mod/go.sum untouched by the diff; new routes registered on http.NewServeMux at internal/httpapi/api.go:49-57; TestAPI_ServesTheFiveCON003Routes green"
+    - "ADR-0004/R1 ✓ holds — grep '\"net/http' internal/board/*.go: only imports_test.go (the guard); TestBoard_DoesNotImportHTTP green"
+    - "ADR-0004/R2 ✓ holds — editCard/deleteCard reach state only via a.board.Edit / a.board.Delete (internal/httpapi/api.go:109,120)"
+    - "ADR-0006/R1 ✓ holds — Edit/Delete lock b.mu with defer Unlock for the whole body (board.go:160-161,185-186), unchanged; TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy (now with random valid/invalid edits) green under -race"
+    - "ADR-0007/R1 ✓ holds — Move and moveCard untouched by the diff; TestPropertyTest_MoveRefusal_FirstFailingCheckWins green"
+    - "INV-001 ✓ holds — validTitle trims then rejects empty or >80 runes (board.go:226-232); TestTitle_80CharsAcceptedOnEdit, TestTitle_81CharsRejected, TestTitle_81CharsRejectedOnEdit, TestTitle_WhitespaceOnlyRejectedOnEdit green; mutation spot-check 3/3 killed"
+    - "INV-002 ✓ holds — Move untouched; PropertyTest_Doing_NeverExceedsWIPUnderConcurrency, TestMoveCard_20ConcurrentMovesKeepDoingAtMost3, TestMoveCard_IntoDoingAtTwoSucceeds, TestMoveCard_IntoFullDoingRefused, TestMoveCard_LeftIntoFullDoingRefused green"
+    - "INV-003 ✓ holds — Move untouched; TestMoveCard_DoneToTodoRefused, TestMoveCard_TodoToDoneRefused green"
+    - "INV-004 ✓ holds — Delete uses slices.Delete on the lane slice (dense by construction); PropertyTest_DenseOrder_AnyOperationSequence, TestDeleteCard_RemovesAndClosesGap, TestDenseOrder_DeleteFirstShiftsUp, TestDenseOrder_MoveKeepsBothColumnsDense green"
+    - "INV-005 ✓ holds — lanes array fixed at three columns, unchanged; TestGetBoard_GroupsCardsByColumnInOrder green"
+
+guardrails:
+  - "G-1 ✓ holds — git diff main -- '*_test.go': api_test.go untouched; board_test.go additions only; property_test.go changes widen generators (titles list, random edit title/description) and add assertions; no assertion removed, retargeted or weakened. TestGetBoard_GroupsCardsByColumnInOrder, TestMoveCard_20ConcurrentMovesKeepDoingAtMost3, PropertyTest_DenseOrder_AnyOperationSequence green"
+
+scope:
+  note: "internal/board/README.md and internal/httpapi/README.md outside predicted Touches; necessary — per-package READMEs document the API table and title rule that this card changes (documentation freshness), not unnecessary scope"
+
+root_causes: []
+
+findings:
+  - id: F-001
+    severity: low
+    category: tech-debt
+    type: question
+    file: internal/httpapi/api.go
+    line: 105
+    title: "PATCH precedence between not_found and an unreadable body is unspecified and differs from move"
+    description: |
+      editCard returns validation_failed for an unreadable body before the id is looked up, so
+      PATCH /api/cards/missing with body `not json` is validation_failed, whereas an invalid
+      but readable title on an unknown id is not_found (Board.Edit checks the id first), and
+      move (ADR-0007) reports not_found ahead of a malformed body. No requirement fixes the
+      PATCH order, so this is an ambiguity, not a violation; the property test
+      (edit_delete_test.go:320) pins the current behaviour.
+    suggestion: |
+      Either record the PATCH precedence (e.g. extend ADR-0007's ordering to edit) or align
+      the handler with move by passing an "unreadable" signal into the aggregate so not_found
+      wins. Not blocking.
+    confidence: high
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-002
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/httpapi/edit_delete_test.go
+    line: 71
+    title: "AC-006 test does not set up the given title 'Old'"
+    description: |
+      AC-006's given is "card A in doing at position 1 with title 'Old'"; the test builds the
+      card via arrange() with a generic title and never asserts the pre-edit title. The
+      observable claim (title becomes 'New', column/position unchanged) is still verified, so
+      the AC is effectively covered.
+    suggestion: |
+      Optionally Edit the card's title to 'Old' (or assert it) before the PATCH so the setup
+      mirrors the given clause verbatim.
+    confidence: high
+    source: model
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+
+minor_triage:
+  sampled: 2
+  total: 2
+  items:
+    - finding: "PATCH precedence between not_found and an unreadable body is unspecified and differs from move"
+      should_gate: false
+      rationale: "No requirement or ADR rule defines PATCH precedence; the behaviour is deterministic, documented and tested — a spec ambiguity to record, not a defect."
+    - finding: "AC-006 test does not set up the given title 'Old'"
+      should_gate: false
+      rationale: "The asserted outcome (new title, same column and position) is what AC-006 checks; the starting title value is immaterial to the property."

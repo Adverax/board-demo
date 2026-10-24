@@ -1,6 +1,6 @@
 # CARD-002: Card editing and the full API contract
 
-**Status:** ready
+**Status:** done
 **Priority:** P1
 **Category:** feature
 **Estimate:** 1c
@@ -18,11 +18,11 @@
 **Touches:** internal/board/**.go, internal/httpapi/**.go
 **UI surface:** none
 **Readiness:** 7/7
-**Review score:** —
-**Started:** —
-**Closed:** —
-**Actual:** —
-**Merge commit:** —
+**Review score:** 9.0
+**Started:** 2026-10-24T07:21:48Z
+**Closed:** 2026-10-24T07:31:56Z
+**Actual:** 0.0d
+**Merge commit:** f5e76a0c60ce8a39533cf361087d0f3f8cae09a5
 **Blocked by:** —
 
 ## What to implement
@@ -107,3 +107,21 @@ five endpoints of CON-003 are all served by the standard ServeMux.
 ## Worktree notes
 
 —
+- Skill `golang-pro` is not available in this environment; implemented without it (forge:engineering-standards applied).
+- `internal/board`: `Edit`/`Delete` already existed from CARD-001 with the ADR-0006 lock discipline; this card added `MaxTitleLength = 80` and the rune-count check (after trimming, ASM-0002) inside the shared `validTitle`, so Add and Edit enforce the full INV-001. Doc comments updated.
+- `internal/httpapi`: `PATCH /api/cards/{id}` (pointer fields: absent/null leaves a field unchanged, ASM-0001; 200 with the card) and `DELETE /api/cards/{id}` (204, no body) added to the ServeMux; refusals go through the existing `writeError`. All five CON-003 routes now served. Decision: an unreadable PATCH body (malformed, oversized, non-string field) is `validation_failed` before the id lookup, like POST /api/cards; the ADR-0007 precedence is specified only for move and is unchanged.
+- Tests: every AC test name in `internal/httpapi/edit_delete_test.go`, plus partial-update, malformed-body, rune-counting, route-set (405/404) tests and `TestPropertyTest_EditDelete_ContractHolds`. Invariants enumerated: INV-001 -> new `TestPropertyTest_Title_ValidOnAddAndEdit` and the model test (titles now include 80/81-rune values); INV-002/INV-003/INV-005 unchanged; INV-004 -> model and random-operation property tests plus `TestDelete_MiddleClosesGap`; EC ADR-0006/R1 -> `TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy` whose edit action now draws optional (valid and invalid) titles and descriptions and which checks that settled titles are INV-001-valid. A mutation run (limit off by one) failed four tests, so the properties bite.
+- G-1: the existing tests were left untouched and pass (`make test`, `make test-race`, `go vet ./...` green).
+- `make lint`: golangci-lint installed here is built for an older Go and cannot load Go 1.26 export data (typecheck error on stdlib imports) — environmental, not a code finding; `go vet` is clean.
+- SCOPE+ internal/board/README.md, internal/httpapi/README.md — keeps the package doc true (title rule, PATCH/DELETE routes).
+- [Build gate] cycle 1: `make test`, `make test-race`, `go vet ./...` pass on bee0526 (the Makefile is in the worktree base). `make lint` could not run on this host: the installed golangci-lint was built for an older Go and cannot read the Go 1.26 standard library data (tooling, not a code finding).
+- [Scope gate] ⚠ grown: +0 components · 2 files outside Touches (internal/board/README.md, internal/httpapi/README.md: per-package docs kept true by the docs step, noted SCOPE+ by the implementation agent); no guardrail hit.
+- [Review 1/3] score 9.0 — critical 0, important 0, minor 2, out-of-scope 0 (reviewer: forge 2026.10.10, model opus). Report: meta/review/20261024T072709Z-CARD-002-cycle1.yml
+- [Severity gate] cycle 1: PASS — 0 critical / 0 important (score 9.0 >= 8). Minor (non-gating, triaged should_gate=false): api.go:105 PATCH precedence between not_found and an unreadable body is unspecified and differs from move (candidate follow-up: extend ADR-0007 to edit, or align the handler); edit_delete_test.go:71 AC-006 test does not set the given title 'Old'.
+- [Review sync] 1 report(s) → meta/review/
+- [Commit] bee0526 feat(httpapi): add card editing and complete the API contract (single commit by the implementation agent via forge:commit; no attribution lines; no meta/ paths in the branch diff).
+- [AC/EC check] All criteria/constraints ✓ (head-sha: bee052601b4c708b074e2a19834eb634728f9555) (evidence):
+  12 items, 12 demonstrated: AC-006..010, AC-019..021, AC-036, AC-037, EC(ADR-0006/R1), G-1. Each named test re-run fresh with -race; PropertyTest_* names implemented with the Go `Test` prefix; G-1: board_test.go additions only, property_test.go edits only strengthen the title rule, no assertion removed.
+- [Merge gate] dependency 2026-10-24T07:31:16Z PASS (deps:b089475c9a8bfc7c4c7ef7bc0aa07a550a43e0f144491b2d88221e5ac799831f, mode=interactive, scan=scanned) — 0 blocking, 0 allowlisted, 0 non-blocking finding(s)
+- [Merge gate] PASS (tree-sha 7410b7d797da715b09b8df49c8b95e4cf14f2f7f, scope=full, 2s, cmd="go build ./... && go test ./...")
+

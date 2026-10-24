@@ -1,0 +1,179 @@
+version: 1
+generated_at: "2026-10-24T07:06:59Z"
+target: "card/001-moves-under-concurrency (51fc75b on main 42baaf3 + uncommitted cycle-1 fix delta)"
+overall_score: 9.5
+risk_level: low
+review_lane: fast
+reviewer: forge:review
+reviewer_version: "2026.10.10"
+model: "opus"
+mode: confirmation
+
+task_contract_verdict: pass
+system_contract_verdict: pass
+overall_verdict: pass
+
+security: applicable (0 findings)
+
+coverage:
+  read:
+    - internal/board/board.go
+    - internal/board/board_test.go
+    - internal/board/property_test.go
+    - internal/httpapi/api.go
+    - internal/httpapi/api_test.go
+    - cmd/board/README.md
+    - internal/board/README.md
+    - internal/httpapi/README.md
+    - meta/kanban/cards/CARD-001.md (worktree diff)
+    - meta/review/20261024T065900Z-CARD-001-cycle1.yml
+  not_reached:
+    - cmd/board/main.go, cmd/board/main_test.go, internal/board/imports_test.go, go.mod, go.sum (outside the fix delta; verified in cycle 1, compile and tests re-run green)
+  confidence: high
+  evidence: "fresh run on the worktree: go build ./..., go vet ./..., go test -count=1 ./..., go test -race -count=1 ./... all green; every named AC/EC/INV test PASS under -race -v. Scratch-copy mutants (not in the worktree): reverting the F-001 fix (treat \"\" as no target in api.go:103) fails TestMoveCard_EmptyTargetIsInvalidMove and TestPropertyTest_MoveRefusal_FirstFailingCheckWins; corrupting doing-lane titles in Snapshot fails TestSnapshot_IsACopy (F-002 assertion now reaches the moved card)."
+metrics:
+  diff: { files: 8, added: 120, removed: 48, note: "fix delta only: 5 modified Go files + 3 new README.md" }
+  max_fan_in: { symbol: "board.Board.Move", callers: 1 }
+  tests_cover_change: true
+  hotspots: []
+  cochange_missing: []
+  unmeasured:
+    max_fan_in: "no_eligible_fact — greenfield code; Board.Move has one non-test caller (internal/httpapi/api.go:107) and 12 test call sites, counted by grep; impact_set.py not run"
+    hotspots: "no_eligible_fact — the touched files were all created in 51fc75b, no churn/defect history"
+    cochange_missing: "no_eligible_fact — no Go history before 51fc75b"
+
+system_contract:
+  rules_checked: 10
+  holds: 8
+  unchecked: 2
+  violated: 0
+  verdicts:
+    - "ADR-0002/R1 ✓ holds — re-verified: go list -deps ./cmd/board ./internal/... lists only stdlib (incl. std-vendored golang.org/x) and module packages; rapid not present; api.go imports unchanged by the delta"
+    - "ADR-0004/R1 ✓ holds — re-verified (board.go in delta): go list -f '{{.Imports}}' ./internal/board = [errors slices strconv strings sync]; TestBoard_DoesNotImportHTTP PASS"
+    - "ADR-0004/R2 ✓ holds — re-verified (api.go in delta): api.go:63,85,107 call only Board.Snapshot/Add/Move"
+    - "ADR-0006/R1 ✓ holds — re-verified (board.go in delta): board.go:84-85,101-102,124-125,153-154,178-179 Lock+defer Unlock first in every exported method; Move only dereferences the caller's *Column under the lock and never retains it; TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy and TestSnapshot_IsACopy PASS under -race"
+    - "ADR-0007/R1 ✓ holds — re-verified: board.go:127-140 checks not_found, nil target (validation_failed), adjacency incl. \"\"/unknown (invalid_move), WIP; api.go:102-106 yields nil only on decode error or absent/null/non-string to; TestMoveCard_EmptyTargetIsInvalidMove, TestMoveCard_OversizedBodyRejected, TestMove_Refusals, TestPropertyTest_MoveRefusal_FirstFailingCheckWins PASS; mutant reverting the fix is killed"
+    - "INV-001 ⚠ unchecked — check_ref_missing: TestTitle_80CharsAcceptedOnEdit, TestTitle_81CharsRejected, TestTitle_81CharsRejectedOnEdit, TestTitle_WhitespaceOnlyRejectedOnEdit (CARD-002); manual read: validTitle untouched by the delta, TestAdd_RejectsBlankTitle and TestAddCard_RejectsBlankTitle PASS"
+    - "INV-002 ✓ holds — re-verified (board.go in delta): board.go:138 WIP check under the lock before the single mutation; TestMoveCard_20ConcurrentMovesKeepDoingAtMost3, TestMoveCard_IntoDoingAtTwoSucceeds, TestMoveCard_IntoFullDoingRefused, TestMoveCard_LeftIntoFullDoingRefused, TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency PASS under -race"
+    - "INV-003 ✓ holds — re-verified: board.go:135 adjacency check; TestMoveCard_TodoToDoneRefused, TestMoveCard_DoneToTodoRefused PASS"
+    - "INV-004 ⚠ unchecked — check_ref_missing: TestDeleteCard_RemovesAndClosesGap (HTTP delete, CARD-002); TestDenseOrder_DeleteFirstShiftsUp, TestDenseOrder_MoveKeepsBothColumnsDense, TestPropertyTest_DenseOrder_AnyOperationSequence PASS; manual read: board.go:142-144 slice delete+append keeps position = index"
+    - "INV-005 ✓ holds — re-verified: fixed three-element lanes array, Snapshot.Lanes fixed-size; TestGetBoard_GroupsCardsByColumnInOrder PASS"
+
+previous_findings:
+  - id: F-001
+    verify: "VERIFY internal/httpapi/api.go:103 **Empty-string move target returns validation_failed instead of invalid_move** — ✓ resolved"
+  - id: F-002
+    verify: "VERIFY internal/board/board_test.go:275 **TestSnapshot_IsACopy checks the title of a different card than the one it mutated** — ✓ resolved"
+  - id: F-003
+    verify: "VERIFY internal/httpapi/api.go:51 **Unknown routes and wrong methods answer text/plain, not a CON-004 JSON error object** — ✗ still present"
+  - id: F-004
+    verify: "VERIFY internal/httpapi/api_test.go:283 **Oversized-body failure row is tested only on POST /api/cards, not on the move route** — ✓ resolved"
+
+root_causes:
+  - id: RC-2
+    title: "Fix removed board.NoColumn but the card's worktree notes were not updated"
+    finding_ids: [F-007]
+
+findings:
+  - id: F-001
+    severity: medium
+    category: tech-debt
+    type: bug
+    file: internal/httpapi/api.go
+    line: 103
+    title: "Empty-string move target returns validation_failed instead of invalid_move"
+    description: "Resolved: Move takes *Column; nil only for an unreadable body; {\"to\":\"\"} reaches the adjacency check and returns 409 invalid_move. Regression test TestMoveCard_EmptyTargetIsInvalidMove and the moveBodies {\"to\":\"\"} case kill the reverting mutant."
+    suggestion: null
+    confidence: high
+    source: static
+    violates: ADR-0007/R1
+    root_cause: RC-1
+    status: fixed
+    fixed_in: null
+    dismissed_reason: null
+    learned_pattern: null
+
+  - id: F-002
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/board/board_test.go
+    line: 275
+    title: "TestSnapshot_IsACopy checks the title of a different card than the one it mutated"
+    description: "Resolved: the assertion now checks again.Lanes[1].Cards[0] (the mutated, moved card)."
+    suggestion: null
+    status: fixed
+    fixed_in: null
+
+  - id: F-003
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/httpapi/api.go
+    line: 51
+    title: "Unknown routes and wrong methods answer text/plain, not a CON-004 JSON error object"
+    description: "Still present, deliberately skipped by the fix cycle: ServeMux's own 404/405 are text/plain. CON-004 lists no code for them; an ambiguity of the brief rather than a broken AC."
+    suggestion: "Record the reading in ADR-0007/ADR-0009 or wrap the mux with a JSON 404/405."
+    status: open
+
+  - id: F-004
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/httpapi/api_test.go
+    line: 283
+    title: "Oversized-body failure row is tested only on POST /api/cards, not on the move route"
+    description: "Resolved: TestMoveCard_OversizedBodyRejected covers validation_failed on a known id and not_found on an unknown id, board unchanged."
+    suggestion: null
+    status: fixed
+    fixed_in: null
+
+  - id: F-007
+    severity: low
+    category: tech-debt
+    type: gap
+    file: meta/kanban/cards/CARD-001.md
+    line: 183
+    title: "Card worktree notes still describe the removed board.NoColumn sentinel and the old empty-string behaviour"
+    description: |
+      The STRUCTURE bullet at CARD-001.md:183-188 says an unreadable move body "is passed in as
+      `board.NoColumn` (\"\")" and "Consequence: `{\"to\":\"\"}` is `validation_failed`, not
+      `invalid_move`". Both contradict the code after the fix (board.go:123 Move(id, *Column),
+      NoColumn deleted; api_test.go:271 asserts invalid_move). In scope: the fix delta caused it by
+      removing the sentinel; every Go doc comment and the three READMEs were updated, this note was not.
+    suggestion: "Rewrite the bullet: unreadable body -> nil *Column -> ErrValidation after the lookup; any string incl. \"\" -> invalid_move."
+    confidence: high
+    source: static
+    root_cause: RC-2
+    status: open
+
+  - id: F-005
+    severity: info
+    category: tech-debt
+    type: question
+    file: meta/architecture/requirements.yml
+    line: null
+    title: "Traced test names PropertyTest_* do not match the Go names TestPropertyTest_*"
+    description: "Carried from cycle 1; model-side, out of this diff's scope."
+    status: open
+
+  - id: F-006
+    severity: info
+    category: tech-debt
+    type: question
+    file: internal/httpapi/api.go
+    line: 17
+    title: "Board size is unbounded: no card count cap, descriptions up to ~1 MiB each"
+    description: "Carried from cycle 1; the frozen brief sets no limit."
+    status: open
+
+minor_triage:
+  sampled: 2
+  total: 2
+  items:
+    - finding: "Card worktree notes still describe the removed board.NoColumn sentinel and the old empty-string behaviour"
+      should_gate: false
+      rationale: "Non-blocking: a stale note in an uncommitted meta file; code, doc comments, READMEs and tests all agree on the new contract."
+    - finding: "Unknown routes and wrong methods answer text/plain, not a CON-004 JSON error object"
+      should_gate: false
+      rationale: "Non-blocking: CON-004 defines codes only for the four refusals and no AC covers unknown routes or methods; an ambiguity, not a broken contract."

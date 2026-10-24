@@ -1,6 +1,6 @@
 # CARD-001: Moves under concurrency, end to end (walking skeleton)
 
-**Status:** ready
+**Status:** done
 **Priority:** P1
 **Category:** feature
 **Estimate:** 2c
@@ -19,11 +19,11 @@
 **Touches:** internal/board/**.go, internal/httpapi/**.go, cmd/board/**.go, go.mod, go.sum
 **UI surface:** none
 **Readiness:** 7/7
-**Review score:** —
-**Started:** —
-**Closed:** —
-**Actual:** —
-**Merge commit:** —
+**Review score:** 9.5
+**Started:** 2026-10-24T06:46:19Z
+**Closed:** 2026-10-24T07:13:22Z
+**Actual:** 0.1d
+**Merge commit:** 9c0229ddd327d360f1d34ea1311f9e42744ca10d
 **Blocked by:** —
 
 ## What to implement
@@ -135,6 +135,99 @@ that keeps positions dense after any random sequence of add, move, edit and dele
 - **Components:** COMP-001, COMP-002, COMP-004
 - **Trace:** meta/architecture/trace.yml
 
+## Failure matrix
+
+Config values: `maxBodyBytes` = 1 MiB (httpapi), `ReadHeaderTimeout` = 5 s, `ReadTimeout` = 10 s,
+`WriteTimeout` = 10 s, `IdleTimeout` = 60 s, `shutdownTimeout` = 5 s (cmd/board). `n` = cards on the board.
+
+| operation / boundary | failure mode | declared behaviour | numeric bound |
+| --- | --- | --- | --- |
+| Board.* (Snapshot/Add/Move/Edit/Delete) | concurrent callers | serialised on the Board's one `sync.Mutex`; each critical section is pure in-memory work, no I/O, no callbacks, no JSON encoding under the lock | lock hold time O(n); wait time ≤ (queued callers) × O(n); doing ≤ 3 in every snapshot and after settle |
+| Board.* | panic inside a critical section | `defer Unlock` releases the lock; the state change is applied only after every check passed (checks first, single mutation last), so a refused call changes nothing | 0 partial mutations on refusal |
+| Board.* | non-cooperative callee | none exists: the aggregate calls no external code while holding the lock | — |
+| HTTP request (all routes) | poison input: oversized body | `http.MaxBytesReader` stops reading; request refused `validation_failed` (400); on move the handler passes a nil target, so `not_found` wins if the id is unknown (ADR-0007) | ≤ 1 MiB read per request |
+| HTTP request | poison input: malformed JSON, non-string `to`/`title`, missing field | `validation_failed` (400); on move the handler passes a nil target to `Board.Move`, so `not_found` wins if the id is unknown (ADR-0007) | board unchanged |
+| POST /api/cards/{id}/move | present but unknown `to` string, including `""` | a non-nil target: `invalid_move` (409) after `not_found`; never `validation_failed` (ADR-0007/R1) | board unchanged |
+| HTTP request | slow client (slowloris / slow body) | server read deadlines close the connection | header ≤ 5 s, whole request ≤ 10 s, response write ≤ 10 s, idle keep-alive ≤ 60 s |
+| HTTP request | client timeout / disconnect mid-request | the handler is not cancelled (no context checks are needed: work under the lock is O(n) in memory and finishes); the mutation may be applied although the client never sees the response | ≤ 1 abandoned mutation per abandoned request |
+| POST /api/cards/{id}/move | retry / duplicate delivery | not idempotent by key, but self-detecting: a duplicate of a succeeded move names the card's current column, so it is refused `invalid_move` and changes nothing | ≤ 1 effective move per (card, target) pair while the card stays put |
+| POST /api/cards | retry / duplicate delivery | not idempotent: a retried add creates a second card (no idempotency key; the frozen brief has none) | 1 extra card per duplicate request |
+| HTTP handler | panic | `defer Unlock` in the aggregate frees the lock; net/http's per-connection recovery logs the stack to the server error log and closes that connection; the server keeps serving. No custom recover middleware or metric (ADR-0013: no observability) | 1 connection lost per panic; 0 other requests affected |
+| Process | crash mid-operation | the in-memory board is lost (CON-002, accepted); no torn state can be persisted because nothing is persisted | board state after restart = empty |
+| Process | graceful shutdown (SIGINT/SIGTERM) | stop accepting, `Server.Shutdown` waits for in-flight handlers; on deadline `Server.Close` force-closes the rest | exit ≤ 5 s after the signal (+ ≤ 10 s WriteTimeout bound on a stuck writer is cut by Close) |
+| Process | port already in use | `ListenAndServe` fails, the binary exits non-zero with the error | immediate |
+
 ## Worktree notes
 
 —
+Skill note: no `golang-pro` skill is available in this environment; implemented without it
+(forge:engineering-standards loaded).
+Summary: walking skeleton done. `internal/board` (aggregate, mutex, Snapshot copy, Add,
+Move, Edit, Delete), `internal/httpapi` (GET /api/board, POST /api/cards,
+POST /api/cards/{id}/move, one `writeError` helper), `cmd/board` (PORT/8080, server
+timeouts, graceful shutdown). `go build ./...`, `go vet ./...`, `go test ./...` and
+`go test -race ./...` are green. The binary was smoke-run on a PORT and answered all three
+routes. Mutation check (in a scratch copy): releasing the lock between the WIP check and the
+state change makes TestConcurrency_20SimultaneousMovesIntoDoing and
+TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency fail.
+- STRUCTURE: `internal/board` has one file, `board.go`: exported value types `Column`, `Card`,
+  `Lane`, `Snapshot{Lanes [3]Lane}`, and an unexported `card` stored in `lanes [3][]card`. The
+  position is the slice index, so dense order (INV-004) holds by construction, and `Card.Position`
+  is computed when a card is copied out. Why: no position bookkeeping to get wrong; the property
+  tests still check positions through `Snapshot`.
+- STRUCTURE: refusals are package-level sentinel errors (`ErrNotFound`, `ErrValidation`,
+  `ErrInvalidMove`, `ErrWIPLimit`), one per CON-004 code. httpapi maps them in a single
+  `writeError` switch (404/400/409/409). Why: the aggregate stays free of HTTP (ADR-0004/R1),
+  and CARD-002 reuses the same mapping for PATCH/DELETE.
+- STRUCTURE: the ADR-0007 precedence is enforced only in `Board.Move`. A move body that cannot be
+  read (malformed, missing, null or non-string `to`, or an oversized body) is passed in as
+  `board.NoColumn` (""), which Move refuses with ErrValidation after the card lookup. Why: not_found
+  beats validation_failed within one critical section, with no Exists() pre-check and its TOCTOU.
+  Consequence: `{"to":""}` is `validation_failed`, not `invalid_move`, because an empty string
+  names no column.
+- STRUCTURE: `Edit(id string, title, description *string)`: a nil pointer leaves the field
+  unchanged (the partial-update shape ASM-0001 needs for CARD-002's PATCH). For now the title rule
+  is only "trimmed, not blank". CARD-002 adds the 80-rune limit inside `validTitle`, which both Add
+  and Edit share.
+- STRUCTURE: card ids are decimal strings from a per-board counter ("1", "2", ...). Why: simple,
+  unique within the process, and readable in a demo. There is no persistence (CON-002).
+- STRUCTURE: httpapi takes the concrete `*board.Board`, with no port interface. Why: it is the same
+  bounded context and the only implementation (engineering-standards §9). `httpapi.New(b)` returns
+  an `http.Handler` (a ServeMux). CARD-002 appends its PATCH/DELETE routes there, and the page card
+  can add `GET /` the same way.
+- STRUCTURE: JSON shapes. A card is `{"id","title","description","column","position"}`, the board is
+  `{"columns":[{"name","cards":[...]}]}` with three columns always present and `cards` never null,
+  and an error is `{"code":...}` only. Bodies are decoded with `io.ReadAll` (capped at 1 MiB) plus
+  `json.Unmarshal`, so trailing garbage is `validation_failed`. Unknown fields are ignored.
+- STRUCTURE: test naming. Go requires a `Test` prefix, so a traced name such as
+  `PropertyTest_DenseOrder_AnyOperationSequence` becomes the function
+  `TestPropertyTest_DenseOrder_AnyOperationSequence`. Run one with `go test ./internal/board -run PropertyTest_DenseOrder`.
+- STRUCTURE: `cmd/board` splits into `addr(getenv)` and `serve(ctx, ln, h)` so the PORT default
+  and graceful shutdown can be tested in-process without a fixed port.
+- Tests beyond the named ones: TestBoard_DoesNotImportHTTP (pins ADR-0004/R1, which the ADR says
+  can erode silently), TestAddCard_OversizedBodyRejected, TestMove_Refusals (a precedence table at
+  aggregate level), TestServe_AnswersRoutesAndShutsDownOnCancel.
+- Property tests: rapid v1.2.0 is a test-only `require` in go.mod and appears only in `_test.go`
+  files. They use the default 100 checks per test, and the whole suite runs in about 2 s under -race.
+- Not done (out of scope): CLAUDE.md still says "no code yet". It sits outside this card's
+  Touches, so updating it is left to the merge or a later card.
+[Commit] untracked outside Touches: cmd/board/README.md, internal/board/README.md, internal/httpapi/README.md
+
+- [Build gate] cycle 1: `go build ./... && go vet ./... && go test ./... && go test -race ./...` pass on 51fc75b (full suite; Makefile not yet in the worktree base).
+- [Scope] cycle 1: in_scope (10 files, none outside Touches, no guardrail hit).
+- [Review 1/3] score 8.5 — critical 0, important 1, minor 3, out-of-scope 2 (reviewer: forge 2026.10.10, model opus). Report: meta/review/20261024T065900Z-CARD-001-cycle1.yml
+- [Severity gate] cycle 1: BLOCKING — 1 Important: api.go:101 empty-string move target returns validation_failed instead of invalid_move (violates ADR-0007/R1; NoColumn sentinel "" collides with a present empty "to"). Note: the YAML report records it as severity `medium`, the text verdict as Important; the gate follows the text sections.
+- [Review sync] 1 report(s) → meta/review/
+- [Fix 1] FIXED F-001 (tests: TestMoveCard_EmptyTargetIsInvalidMove, TestPropertyTest_MoveRefusal_FirstFailingCheckWins, TestMove_Refusals), FIXED F-002 (TestSnapshot_IsACopy), FIXED F-004 (TestMoveCard_OversizedBodyRejected), SKIPPED F-003 (CON-004 ambiguity for unknown routes/wrong methods: needs a product reading, not a code defect). DECLARATIONS F-001: board.Move/NoColumn docs, httpapi.moveCard doc, READMEs, failure-matrix rows re-derived. Discriminator: presence (`*Column` nil = no readable target), not value.
+- [Fix pre-gate] cycle 1: the five named tests re-run independently with -race: PASS; full build/vet/test pass; scope in_scope.
+- [Review sync] 1 report(s) → meta/review/
+- [Review 2/3] score 9.5 (confirmation mode) — critical 0, important 0, minor 2, out-of-scope 3. VERIFY: F-001 ✓ resolved, F-002 ✓ resolved, F-004 ✓ resolved, F-003 ✗ still present (deliberately skipped: CON-004 gives no code for unknown routes/wrong methods; needs a product reading). Report: meta/review/20261024T070532Z-CARD-001-cycle2.yml
+- [Severity gate] cycle 2: PASS — 0 critical / 0 important.
+- [Correction] the STRUCTURE bullet above that says an unreadable move body is passed as `board.NoColumn` and that `{"to":""}` is `validation_failed` is SUPERSEDED by Fix 1: the sentinel is removed, `Board.Move` takes `*Column` (nil = no readable target -> validation_failed after the not_found lookup); any present string, including "", reaches the adjacency check -> invalid_move (ADR-0007/R1).
+- [Commit] 18ef343 fix(board): classify empty move target per ADR-0007 and add tests and READMEs (on top of 51fc75b). Made by a plain `git commit` in a commit agent, not through the forge:commit skill (deviation disclosed by the agent); no attribution lines, no meta/ paths in the branch diff.
+- [AC/EC check] All criteria/constraints ✓ (head-sha: 18ef34328313ac6ac48fffa3de4ce4cff388f8b9) (evidence):
+  21 items, 21 demonstrated: AC-001..005, AC-011..018, AC-033, AC-022, AC-023, AC-029, AC-030, EC-001, EC-002, EC(ADR-0006/R1), EC(ADR-0007/R1). Each named test re-run fresh with -race; PropertyTest_* names implemented with the Go `Test` prefix.
+- [Review sync] 2 report(s) → meta/review/
+- [Merge gate] dependency 2026-10-24T07:10:41Z PASS (deps:13523bdbf26c32764f0013736c73b1426f091d599cbb36333cf7fda6c5729f0b, mode=interactive, scan=scanned) — 0 blocking, 0 allowlisted, 0 non-blocking finding(s)
+- [Merge gate] PASS (tree-sha 16c6367faa2c8056b7220f642f683f99b1e048e7, scope=full, 1s, cmd="go build ./... && go test ./...")
+

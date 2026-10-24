@@ -1,0 +1,179 @@
+version: 1
+generated_at: "2026-10-24T06:59:00Z"
+target: "card/001-moves-under-concurrency (51fc75b on main 42baaf3)"
+overall_score: 8.5
+risk_level: medium
+review_lane: fast
+reviewer: forge:review
+reviewer_version: "2026.10.10"
+model: "opus"
+
+task_contract_verdict: fail
+system_contract_verdict: fail
+overall_verdict: fail
+
+security: applicable (0 findings)
+
+coverage:
+  read:
+    - internal/board/board.go
+    - internal/board/board_test.go
+    - internal/board/property_test.go
+    - internal/board/imports_test.go
+    - internal/httpapi/api.go
+    - internal/httpapi/api_test.go
+    - cmd/board/main.go
+    - cmd/board/main_test.go
+    - go.mod
+    - meta/architecture/decisions/adr/0007-move-error-codes-precedence.md
+    - meta/architecture/requirements.yml (CON-003, CON-004)
+    - meta/business/assumptions.md (ASM-0003)
+  not_reached:
+    - meta/architecture/c4/
+    - ADR-0001..0015 other than 0002 (OpenAPI posture grep) and 0007 (read in full)
+  confidence: high
+  evidence: "go build, go vet, go test ./..., go test -race ./... all green on 51fc75b (fresh run); probe on a scratch copy confirmed POST /api/cards/1/move {\"to\":\"\"} -> 400 validation_failed, GET on the move route -> 405 text/plain"
+metrics:
+  diff: { files: 10, added: 1695, removed: 0 }
+  max_fan_in: { symbol: "board.Board.Snapshot", callers: 1 }
+  tests_cover_change: true
+  hotspots: []
+  cochange_missing: []
+  unmeasured:
+    max_fan_in: "no_eligible_fact — greenfield code; each exported Board method has exactly one non-test caller (httpapi) or none (Edit, Delete: CARD-002), counted by grep, impact_set.py not run"
+    hotspots: "no_eligible_fact — the touched files are all new in this commit, no churn/defect history"
+    cochange_missing: "no_eligible_fact — repository has 28 commits, none touching Go code before this one"
+
+system_contract:
+  rules_checked: 10
+  holds: 7
+  unchecked: 2
+  violated: 1
+  verdicts:
+    - "ADR-0002/R1 ✓ holds — go list -deps ./cmd/board ./internal/... lists only stdlib + module packages; pgregory.net/rapid is imported only from *_test.go"
+    - "ADR-0004/R1 ✓ holds — internal/board/board.go imports errors, slices, strconv, strings, sync; pinned by TestBoard_DoesNotImportHTTP (green)"
+    - "ADR-0004/R2 ✓ holds — internal/httpapi/api.go:63,85,105 call only Board.Snapshot/Add/Move; no access to unexported state (different package)"
+    - "ADR-0006/R1 ✓ holds — board.go:89-90,106-107,126-127,155-156,180-181 Lock+defer Unlock first in every exported method; Snapshot allocates new Card slices (board.go:94); TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy green under -race"
+    - "ADR-0007/R1 ✗ violated — internal/httpapi/api.go:101-104 + internal/board/board.go:31,133: {\"to\":\"\"} (a present string naming an unknown column) returns validation_failed instead of invalid_move"
+    - "INV-001 ⚠ unchecked — check_ref_missing: TestTitle_80CharsAcceptedOnEdit, TestTitle_81CharsRejected, TestTitle_81CharsRejectedOnEdit, TestTitle_WhitespaceOnlyRejectedOnEdit (80-char half is CARD-002); manual read: blank-title half holds via validTitle (board.go:219-225), TestAdd_RejectsBlankTitle, TestAddCard_RejectsBlankTitle"
+    - "INV-002 ✓ holds — board.go:140 checks under the lock before mutation; TestMoveCard_20ConcurrentMovesKeepDoingAtMost3, TestMoveCard_IntoDoingAtTwoSucceeds, TestMoveCard_IntoFullDoingRefused, TestMoveCard_LeftIntoFullDoingRefused green (-race); ref PropertyTest_Doing_NeverExceedsWIPUnderConcurrency exists as TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency"
+    - "INV-003 ✓ holds — board.go:137 adjacency check; TestMoveCard_TodoToDoneRefused, TestMoveCard_DoneToTodoRefused green"
+    - "INV-004 ⚠ unchecked — check_ref_missing: TestDeleteCard_RemovesAndClosesGap (HTTP delete, CARD-002); remaining checks TestDenseOrder_DeleteFirstShiftsUp, TestDenseOrder_MoveKeepsBothColumnsDense, TestPropertyTest_DenseOrder_AnyOperationSequence green; manual read: lanes are slices so position = index (board.go:78)"
+    - "INV-005 ✓ holds — fixed columns array board.go:38, Snapshot.Lanes is a fixed-size array; TestGetBoard_GroupsCardsByColumnInOrder green"
+
+root_causes:
+  - id: RC-1
+    title: "NoColumn sentinel is the empty string, so a present empty-string target is conflated with 'no readable target'"
+    finding_ids: [F-001]
+
+findings:
+  - id: F-001
+    severity: medium
+    category: tech-debt
+    type: bug
+    file: internal/httpapi/api.go
+    line: 101
+    title: "Empty-string move target returns validation_failed instead of invalid_move"
+    description: |
+      ADR-0007 gives validation_failed only to "a missing or non-string `to` or a malformed
+      body" and invalid_move to a request that "was read but names a target that is not an
+      adjacent column", including unknown column names. moveCard maps a decoded string to
+      board.Column(*req.To); for {"to":""} that is board.NoColumn (board.go:31 defines it as ""),
+      and Move returns ErrValidation (board.go:133). Verified on a scratch copy:
+      POST /api/cards/1/move {"to":""} -> 400 {"code":"validation_failed"}. NoColumn's own doc
+      comment ("missing, non-string or malformed") does not cover a present empty string either.
+      The EC(ADR-0007/R1) property test cannot catch it because moveBodies (api_test.go:358-372)
+      has no {"to":""} case.
+    suggestion: |
+      Keep "no readable target" out of the Column value space: e.g. pass a separate flag
+      (Move(id string, to Column, readable bool) or a *Column / ok pair) or use a sentinel no
+      JSON string can produce at the HTTP layer, so a present "" reaches the adjacency check and
+      returns invalid_move. Add {`{"to":""}`, str("")} to moveBodies.
+    confidence: high
+    source: static
+    violates: ADR-0007/R1
+    root_cause: RC-1
+    status: fixed
+    fixed_in: null
+    dismissed_reason: null
+    learned_pattern: null
+
+  - id: F-002
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/board/board_test.go
+    line: 267
+    title: "TestSnapshot_IsACopy checks the title of a different card than the one it mutated"
+    description: |
+      The test mutates s.Lanes[0].Cards[0] (ids[0]), then moves ids[0] to doing, then asserts
+      again.Lanes[0].Cards[0].Title == "card" — that is ids[1], which was never mutated. The
+      title-leak half of the assertion is vacuous. TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy
+      still covers the leak, so the rule is not unverified.
+    suggestion: "Assert the moved card (again.Lanes[1].Cards[0]) keeps its title, or skip the move."
+    status: fixed
+    fixed_in: null
+
+  - id: F-003
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/httpapi/api.go
+    line: 51
+    title: "Unknown routes and wrong methods answer text/plain, not a CON-004 JSON error object"
+    description: |
+      ServeMux's own 404/405 responses (e.g. GET /api/cards/1/move -> 405 text/plain
+      "Method Not Allowed") are not JSON objects with a code. CON-004 lists no code for them,
+      so this is an ambiguity of the brief rather than a broken AC.
+    suggestion: "Leave as is or wrap the mux with a JSON 404/405; record the reading in ADR-0007 or ADR-0009."
+    status: open
+
+  - id: F-004
+    severity: low
+    category: tech-debt
+    type: gap
+    file: internal/httpapi/api_test.go
+    line: 203
+    title: "Oversized-body failure row is tested only on POST /api/cards, not on the move route"
+    description: |
+      The failure matrix declares the 1 MiB cap for all routes; only addCard has a test.
+      The move path goes through the same decode helper, so the risk is low.
+    suggestion: "Add an oversized {\"to\":...} body to moveBodies (expected validation_failed / not_found by precedence)."
+    status: fixed
+    fixed_in: null
+
+  - id: F-005
+    severity: info
+    category: tech-debt
+    type: question
+    file: meta/architecture/requirements.yml
+    line: null
+    title: "Traced test names PropertyTest_* do not match the Go names TestPropertyTest_*"
+    description: |
+      system_rules.py --verify-refs reports PropertyTest_Doing_NeverExceedsWIPUnderConcurrency
+      and PropertyTest_DenseOrder_AnyOperationSequence as dead check refs because Go requires the
+      Test prefix (documented in property_test.go:12-13). Model-side, out of this diff's scope.
+    suggestion: "Update the test: refs in requirements.yml to the Test-prefixed names (follow-up)."
+    status: open
+
+  - id: F-006
+    severity: info
+    category: tech-debt
+    type: question
+    file: internal/httpapi/api.go
+    line: 17
+    title: "Board size is unbounded: no card count cap, descriptions up to ~1 MiB each"
+    description: "The frozen brief sets no limit; repeated adds can grow process memory without bound. Noted for follow-up, not a card defect."
+    suggestion: "Out of scope; consider a cap only if the brief changes."
+    status: open
+
+minor_triage:
+  sampled: 2
+  total: 3
+  items:
+    - finding: "TestSnapshot_IsACopy checks the title of a different card than the one it mutated"
+      should_gate: false
+      rationale: "Non-blocking: the property test TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy already pins the copy semantics, so no rule is left unverified."
+    - finding: "Unknown routes and wrong methods answer text/plain, not a CON-004 JSON error object"
+      should_gate: false
+      rationale: "Non-blocking: CON-004 defines codes only for the four refusals and no AC covers unknown routes or methods; it is an ambiguity, not a broken contract."

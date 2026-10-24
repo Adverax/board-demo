@@ -1,0 +1,267 @@
+version: 1
+generated_at: "2026-10-24T08:19:29Z"
+target: "card/003-board-page-browser-check (4259944 on main 3be0dad)"
+card: CARD-003
+cycle: 1
+overall_score: 8.6
+risk_level: low
+review_lane: fast
+reviewer: forge:review
+reviewer_version: "2026.10.10"
+model: "opus"
+
+task_contract_verdict: pass
+system_contract_verdict: pass
+overall_verdict: pass
+
+security: applicable (0 findings)
+
+coverage:
+  read:
+    - "every file of the diff in full (cmd/board/e2e_test.go, cmd/board/main.go, internal/httpapi/{api,page,page_test}.go, web/{index.html,web.go,web_test.go,README.md}, web/static/{app.js,app.css,tokens.css}, both package READMEs, go.mod)"
+    - "meta/design/{brief.md,components.md,tokens.css,previews/key-screen.html}"
+    - "meta/architecture/domain/screens.yml (SCR-001 recipes), ADR-0002, ADR-0010, internal/board/board.go (Add/validation), cmd/board/main.go serve()"
+    - "chromedp v0.21.0 source (log/network/runtime domains are enabled per target)"
+  executed:
+    - "go build ./..., go vet ./... (clean); make test, make test-race (green); make test-e2e (13/13 TestE2E_* green, twice); TestE2E_Binary* -count=6 (green)"
+    - "make lint plus golangci-lint --max-same-issues 0 --max-issues-per-linter 0 (6 issues: 3 new in this diff, 3 pre-existing)"
+    - "6 mutants on a scratch copy (console.error, inline script under CSP, busy guard removed, notice cleared on render, REQUEST_TIMEOUT_MS 20000, edge disabled removed): all killed"
+    - "own headless-Chrome capture via chromedp on a scratch copy: board / WIP refusal / edit mode / empty / blank-title refusal, light and dark (prefers-color-scheme emulation), at 1200x900 and a 390px emulated viewport (20 frames)"
+    - "built binary on PORT=18733: GET /, /static/*, /index.html, /static/, traversal attempts, CSP header"
+  not_reached:
+    - "automated axe a11y scan (no axe in the chromedp pipeline): a11y checked statically only"
+    - "baseline-diff (no meta/design/baselines/)"
+    - "Safari/Firefox rendering (Chrome only)"
+  confidence: high
+
+metrics:
+  diff: { files: 16, added: 1702, removed: 10 }
+  max_fan_in: { symbol: "httpapi.New", callers: 77 }
+  tests_cover_change: true
+  hotspots: []
+  cochange_missing: []
+  unmeasured:
+    reverse_deps: "no_eligible_fact — impact_set.py: manifest_changed (go.mod changed, the import graph does not model it) for cmd/board, internal/httpapi, web; no_recipe for web/static"
+    fan_in_web_assets: "no_eligible_fact — impact_set.py: no_symbol_extractor for index.html/app.css/tokens.css, no_exported_symbols for app.js and cmd/board/main.go"
+    cochange_missing: "no_eligible_fact — the only co-change peers absent from the diff (internal/board/*.go with api.go, 3 commits) are not needed: api.go changed only by an additive refactor"
+
+system_contract:
+  rules_checked: 10
+  holds: 8
+  unchecked: 2
+  violated: 0
+  verdicts:
+    - "ADR-0002/R1 ✓ holds — go list -deps ./cmd/board lists only stdlib + module packages (chromedp count 0); chromedp/cdproto imported from cmd/board/e2e_test.go only; page routes registered on the same http.ServeMux (page.go apiMux)"
+    - "ADR-0004/R1 ✓ holds — go list -f '{{.Imports}}' ./internal/board = [errors slices strconv strings sync unicode/utf8]; internal/board not in the diff"
+    - "ADR-0004/R2 ✓ holds — the two new handlers in internal/httpapi/page.go serve files only and never touch the Board; existing handlers unchanged"
+    - "ADR-0006/R1 ⚠ unchecked — no_eligible_fact: internal/board is not in the diff (git diff main...HEAD -- internal/board empty); make test-race green at 4259944"
+    - "ADR-0007/R1 ⚠ unchecked — no_eligible_fact: move ordering lives in internal/board, untouched; the page only displays the server's code"
+    - "INV-001 ✓ holds — named tests exist (internal/httpapi/edit_delete_test.go) and are green at 4259944; the page enforces nothing itself (validation_failed comes from the server, TestE2E_InvalidTitleReasonShownOnPage)"
+    - "INV-002 ✓ holds — named tests exist and are green; the page's WIP_LIMIT is display-only (app.js:242), the refusal is the server's (TestE2E_WipRefusalShownOnPage)"
+    - "INV-003 ✓ holds — named tests green; the page sends only the neighbour column (app.js:269-273) and the server refuses anything else (TestE2E_InvalidMoveReasonShownOnPage)"
+    - "INV-004 ✓ holds — named tests green; TestE2E_EditSaveMoveAndDeleteFlow checks server Position 0 after delete"
+    - "INV-005 ✓ holds — TestGetBoard_GroupsCardsByColumnInOrder green; index.html renders the three columns in fixed order, TestE2E_PageShowsThreeColumnsWithCards"
+
+root_causes:
+  - id: RC-1
+    title: "lint findings of the new e2e file"
+    finding_ids: [F-002, F-003]
+
+findings:
+  - id: F-001
+    severity: medium
+    category: tech-debt
+    type: bug
+    file: web/static/app.js
+    line: 244
+    title: "Unsaved edit draft is discarded by any other action's re-render"
+    description: |
+      state.editing holds the title/description captured at startEdit (app.js:281) and is only
+      refreshed on Save (app.js:298). Every other action re-renders through render() ->
+      editView(card, state.editing) (app.js:244), which rebuilds the edit inputs from that stale
+      snapshot. Reproduced in headless Chrome: open Edit on a card, type a new title, then add a
+      card through the add form -> after the re-render #edit-title shows the original title again,
+      the typed text is lost (same for move/delete of another card or a refusal on it).
+    suggestion: |
+      Keep the draft live (an input listener on #edit-title/#edit-description writing into
+      state.editing, or read the current input values in render() before replacing the
+      children), and add an e2e assertion that the draft survives an unrelated action.
+    confidence: high
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-002
+    severity: low
+    category: tech-debt
+    type: gap
+    file: cmd/board/e2e_test.go
+    line: 335
+    title: "staticcheck QF1001 (De Morgan) in wantTitles"
+    description: "make lint reports QF1001 at cmd/board/e2e_test.go:335, introduced by this diff."
+    suggestion: "Rewrite the condition as !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0)."
+    confidence: high
+    source: static
+    violates: null
+    root_cause: RC-1
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-003
+    severity: low
+    category: tech-debt
+    type: gap
+    file: cmd/board/e2e_test.go
+    line: 754
+    title: "Two new errcheck findings in the e2e file, hidden by golangci-lint's max-same-issues"
+    description: |
+      golangci-lint --max-same-issues 0 reports 5 errcheck issues, not 3: cmd/board/e2e_test.go:754
+      and :780 (resp.Body.Close unchecked) are new in this diff. The default output caps a linter at
+      3 same issues, so `make lint` shows these two plus main_test.go:51 and silently drops
+      main_test.go:65 and api_test.go:353; the brief's "3 pre-existing errcheck" count therefore
+      misattributes two of the visible ones.
+    suggestion: "Use `_ = resp.Body.Close()` at both lines (as page.go already does for its write)."
+    confidence: high
+    source: static
+    violates: null
+    root_cause: RC-1
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-004
+    severity: low
+    category: tech-debt
+    type: gap
+    file: web/static/app.js
+    line: 99
+    title: "Failure-matrix notice texts drift from the code; one row missing"
+    description: |
+      The declared matrix says the network notice reads "Could not reach the board…", the unknown
+      code "The action was refused (<code>).", the unexpected one "The server sent an unexpected
+      response (HTTP <status>).". The code says "<prefix>: the board could not be reached. …"
+      (app.js:99), "the server refused it (code \"X\")." (app.js:103) and a lowercase "the server
+      sent…" after a prefix (app.js:101). The data-code values and behaviour match. Undeclared
+      row: timeout after the request was sent and executed server-side -> the notice says the
+      board could not be reached although the action happened; the re-read then shows the real
+      board (behaviour acceptable, declaration silent).
+    suggestion: "Align the matrix text with app.js (or vice versa) and add the executed-but-timed-out row."
+    confidence: high
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-005
+    severity: low
+    category: tech-debt
+    type: question
+    file: meta/architecture/domain/screens.yml
+    line: 40
+    title: "edit_mode recipe `click #edit-card` is unreachable with #edit-card as the form id"
+    description: |
+      app.js:216 gives the id #edit-card to the edit FORM, which exists only after edit mode is
+      entered; it is unique (one edit at a time) and no AC names it. But the SCR-001 edit_mode
+      recipe says click #edit-card on route "/" to reach that state, so an automated capture
+      following the recipe finds no element. A unique per-card trigger id is impossible with
+      several cards, so the recipe itself needs retargeting. In scope: caused by this diff's
+      choice of what #edit-card names.
+    suggestion: "Retarget the recipe (via forge:architect) to e.g. `[data-card-id] [data-action=\"edit\"]` first match, or record that #edit-card is the edit-mode marker, not the trigger."
+    confidence: medium
+    source: model
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-006
+    severity: low
+    category: tech-debt
+    type: gap
+    file: web/static/app.css
+    line: 50
+    title: "Submitting / being-deleted states have no visual"
+    description: |
+      components.md lists AddCardForm "submitting / disabled while submitting", EditCardForm
+      "saving" and Card "being-deleted". The code sets the disabled attribute and
+      #board[aria-busy], but .button-primary:disabled only changes the cursor, and no card is
+      marked while its delete is in flight, so the states are invisible during a slow request
+      (up to 10 s by the matrix).
+    suggestion: "Give :disabled primary buttons a token-based muted look and/or mark the acting card (aria-busy on the li) with a token style."
+    confidence: medium
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-007
+    severity: low
+    category: tech-debt
+    type: gap
+    file: cmd/board/e2e_test.go
+    line: 620
+    title: "Page logic branches are tested only through the browser e2e tier"
+    description: |
+      reasonFor/isBoard/request branches are exercised by TestE2E_PageLogicBranches against a
+      stubbed server in Chrome; there is no component tier. Accepted here as a standing exception:
+      CON-005 (no build step) and ADR-0010 (no Node toolchain) leave no JS unit runner, and the
+      stubbed-backend test does cover every declared branch. Noted, non-gating.
+    suggestion: "None required; optionally document the exception in web/README.md."
+    confidence: medium
+    source: model
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-008
+    severity: low
+    category: tech-debt
+    type: risk
+    file: cmd/board/e2e_test.go
+    line: 591
+    title: "Slow-response test spends ~6.5 s of real time (40% of the e2e suite)"
+    description: "REQUEST_TIMEOUT_MS is a fixed constant, so the test waits the real 5 s abort; measured 6.48 s of a 15.7 s suite. Suite cost, not a flake (polling, bounded)."
+    suggestion: "Acceptable as is; if the suite grows, consider making the timeout overridable for tests only."
+    confidence: high
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+  - id: F-009
+    severity: info
+    category: ops
+    type: risk
+    file: cmd/board/main.go
+    line: 72
+    title: "[out-of-scope] serve(): Shutdown can wait 5 s on a dialed-but-unused connection and exit 1"
+    description: |
+      Pre-existing CARD-001 code (last changed in 6fff8d0); this diff touches main.go lines 1-46
+      only. http.Server.Shutdown treats a StateNew connection as idle only after 5 s, equal to
+      shutdownTimeout, so a client that dials and never sends makes the binary exit 1 with
+      "context deadline exceeded". The test-side fix (DisableKeepAlives client) holds: 6/6
+      repeated TestE2E_Binary* runs green.
+    suggestion: "Follow-up card: treat context.DeadlineExceeded after a forced Close as a clean stop, or lengthen the drain beyond 5 s."
+    confidence: high
+    source: static
+    violates: null
+    root_cause: null
+    status: open
+    fixed_in: null
+    dismissed_reason: null
+
+minor_triage:
+  sampled: 2
+  total: 8
+  items:
+    - finding: "Unsaved edit draft is discarded by any other action's re-render"
+      should_gate: false
+      rationale: "Loses only unsaved input after an unrelated action mid-edit; nothing persisted is wrong and no AC or declared state covers it. A fix is cheap, but it is a UX defect, not a correctness one."
+    - finding: "staticcheck QF1001 (De Morgan) in wantTitles"
+      should_gate: false
+      rationale: "A quick-fix style suggestion in test code. Behaviour is unchanged."
