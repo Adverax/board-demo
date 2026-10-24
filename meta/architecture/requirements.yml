@@ -154,11 +154,19 @@ functional:
         test: TestMoveCard_LeftIntoFullDoingRefused
     engineering_constraints:
       - id: EC-001
-        statement: For any number of simultaneous moves into doing, the doing column never holds more than 3 cards at any observable instant
+        statement: For any number of simultaneous moves into doing, every snapshot read of the board, and the board after the moves settle, shows at most 3 cards in doing
         kind: concurrency
         instances: [AC-018]
         invariant: INV-002
         test: PropertyTest_Doing_NeverExceedsWIPUnderConcurrency
+        clarification:
+          scope: "In: every snapshot read (GET /api/board, Board.Snapshot) during the moves and the settled board after them. Out: transient states inside one move, which no caller can observe (ADR-0005)."
+          actors: "not applicable: statement names no actor and the recorded radius lists none (machine fact no_actor_named_in_the_entry_or_in_the_radius_ids)"
+          error_alt_paths: "Moves beyond the limit are refused with wip_limit_exceeded (AC-018, AC-033); no new path is introduced by the narrowing."
+          data: "not applicable: statement names no event and no aggregate and the recorded radius lists none (machine fact no_event_or_aggregate_named_in_the_entry_or_in_the_radius_ids)"
+          edge_cases: "20 simultaneous moves into an empty doing (AC-018); snapshots polled while the moves run; the settled state after they finish."
+          nfr: "NFR-001 is unchanged; the guarantee is narrowed to match it. ADR-0006 makes every read take the aggregate lock, which is implementation, not a requirement of EC-001."
+          dependencies: "Recorded radius is empty (radius_count 0). Links to AC-018 and INV-002 and the test name are unchanged, so no derivative needs an update."
   - id: FR-008
     statement: "A card title is not empty after trimming whitespace and is at most 80 characters, on add and on edit."
     source: [US-002, US-003, US-006]

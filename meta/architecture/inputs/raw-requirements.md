@@ -42,3 +42,5 @@
 - Every rule is covered by at least one named test (CON, verification). Source: docs/board-service.md, 2026-10-24.
 # processed: 2026-10-24 → NFR-003
 - The binary starts, serves the page, and every capability works end to end in a browser (NFR, release criterion). Source: docs/board-service.md, 2026-10-24.
+# processed: 2026-10-24 → EC-001
+- Narrow EC-001: for any number of simultaneous moves into doing, every snapshot read of the board, and the board after the moves settle, shows at most 3 cards in doing (replaces "never holds more than 3 cards at any observable instant"; the test name and the links to AC-018 and INV-002 stay) (NFR/EC). Source: ADR-0005 (DEC-006), 2026-10-24.
