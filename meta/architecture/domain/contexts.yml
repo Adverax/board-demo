@@ -1,0 +1,19 @@
+# generated_by: architect-context-mapping
+# tier: medium
+# Single bounded context, intentional. Rationale:
+# - One ubiquitous language: Board, Card, Column, WIP limit, Dense order, Adjacent move
+#   each carry one meaning across CAP-001, CAP-002 and CAP-003 (no term splits).
+# - One aggregate (AGG-001 Board) is shared by all three capabilities; its invariants
+#   (WIP limit, dense order) span cards, so splitting would cut one consistency boundary.
+# - Same lifecycle, same change rate, one owner; no external systems, users or auth (CON-002, CON-007).
+# Honest note: CAP-003 is a read-only view over the same model, not a separate language.
+contexts:
+  - id: CTX-001
+    name: Board
+    description: "The single shared kanban board - capturing, correcting, dropping and moving cards under the WIP limit, adjacency and dense order rules, and presenting the whole board with explained refusals."
+    capabilities: [CAP-001, CAP-002, CAP-003]
+    aggregates: [AGG-001]
+    ubiquitous_language: [TERM-001, TERM-002, TERM-003, TERM-004, TERM-005, TERM-006]
+
+# No relations: one context, no external systems, so nothing to integrate.
+context_map: []
