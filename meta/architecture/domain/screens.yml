@@ -20,11 +20,11 @@ screens:
           route: "/"
         test: "e2e/root.spec.ts::Board with cards in todo, doing and done"
         trace: {fr: "FR-010", component: "COMP-003"}
-      - id: "refresh_pending_dec013"
-        name: "Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004"
+      - id: "refreshed_after_action"
+        name: "Board re-read after every action, succeeded or refused, no polling (ASM-0004)"
         recipe:
           route: "/"
-        test: "e2e/root.spec.ts::Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004"
+        test: "e2e/root.spec.ts::Board re-read after every action, succeeded or refused, no polling (ASM-0004)"
         trace: {fr: "FR-010", component: "COMP-003"}
       - id: "add_form"
         name: "Add form visible with title and description inputs"
@@ -64,11 +64,11 @@ screens:
           route: "/"
         test: "e2e/root.spec.ts::Doing column holds 3 cards"
         trace: {fr: "FR-010", component: "COMP-003"}
-      - id: "edge_controls_pending_dec007"
-        name: "Move left on todo card and move right on done card, behaviour pending DEC-007"
+      - id: "edge_controls_disabled"
+        name: "Move left on todo card and move right on done card rendered disabled"
         recipe:
           route: "/"
-        test: "e2e/root.spec.ts::Move left on todo card and move right on done card, behaviour pending DEC-007"
+        test: "e2e/root.spec.ts::Move left on todo card and move right on done card rendered disabled"
         trace: {fr: "FR-010", component: "COMP-003"}
       - id: "refused_wip_limit_exceeded"
         name: "Reason shown for wip_limit_exceeded"

@@ -28,8 +28,8 @@ Deliberate deviation from the direction bank: the bank asks for gentle ease-out 
 - Colour used for decoration: the accent is reserved for the primary action, focus, and the WIP-limit frame.
 
 ## Open points that the design deliberately does not decide
-- DEC-007: how the "move left" control on a `todo` card and the "move right" control on a `done` card behave (disabled, hidden, or sending the request). The previews render both enabled; the tokens and components do not prescribe a state for them.
-- DEC-013 / ASM-0004: how the page refreshes after an action. Components describe observable outcomes only.
+- None open. DEC-007 is decided by ADR-0008: the edge controls ("move left" on a `todo` card, "move right" on a `done` card) are rendered but disabled, styled with existing tokens (CardActions in components.md; previews/key-screen.html shows them). DEC-013 is decided by ADR-0009: after every action, succeeded or refused, the page shows any reason and re-reads GET /api/board; there is no polling, and ASM-0004 (no auto-refresh) stays an unvalidated assumption.
 
 ## History
 - 2026-10-24 — initial direction "Soft depth / Humanist" chosen (interactive); candidates "Swiss / International" and "Warm print" kept in previews/ for comparison
+- 2026-10-24 — update: edge move controls disabled per ADR-0008 (existing tokens, no new token) and re-read after every action per ADR-0009 recorded in components.md; key-screen preview renders the edge controls disabled; direction, palette and shape policy unchanged

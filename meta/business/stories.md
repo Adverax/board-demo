@@ -8,7 +8,7 @@ US-001: As a TeamMember, I want to see all cards grouped into `todo`,
         Screen: Board at / [queries: GetBoard] [fr: FR-010]
           State empty: Empty board with three empty columns
           State populated: Board with cards in todo, doing and done
-          State refresh_pending_dec013: Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004
+          State refreshed_after_action: Board re-read after every action, succeeded or refused, no polling (ASM-0004)
 US-002: As a TeamMember, I want to add a card with a title and an optional
         description that lands at the end of `todo`, so that new work is
         captured in the queue.
@@ -29,7 +29,7 @@ US-005: As a TeamMember, I want to move a card one column left or right so
         Screen: Board at / [fr: FR-010]
           State card_moved: Card moved to the adjacent column
           State doing_at_wip_limit: Doing column holds 3 cards
-          State edge_controls_pending_dec007: Move left on todo card and move right on done card, behaviour pending DEC-007
+          State edge_controls_disabled: Move left on todo card and move right on done card rendered disabled
 US-006: As a TeamMember, I want a refused action to show its reason on the
         page, so that I understand why nothing changed (WIP limit,
         non-adjacent move, invalid title).

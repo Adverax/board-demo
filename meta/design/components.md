@@ -17,11 +17,11 @@ Notes: primary button label "Add card"; title input is the first focusable field
 Used by: US-006 (FR-011). Shows the reason of the last refused action.
 States: hidden (nothing refused) · wip_limit_exceeded ("doing already holds 3 cards") · invalid_move (non-adjacent move) · not_found (the card is already gone, e.g. deleted by another member) · validation_failed (blank or too long title).
 Tokens: --color-danger, --color-danger-bg, --radius-control, --space-2, --space-3, --weight-strong.
-Notes: `role="alert"`; text is the server's reason, never colour alone. Dismissal and auto-hide are **pending** DEC-013 (page refresh behaviour).
+Notes: `role="alert"`; text is the server's reason, never colour alone. Decided by ADR-0009: after every action, succeeded or refused, the page shows any reason and then re-reads GET /api/board and re-renders; the re-render does not hide the reason just shown. No polling.
 
 ## Board
 Used by: US-001 (FR-001, FR-010). A three-column grid in fixed order `todo`, `doing`, `done`.
-States: populated · empty (all three columns empty) · refresh after a mutation (**pending** DEC-013 and ASM-0004).
+States: populated · empty (all three columns empty) · re-rendered after an action (ADR-0009: after every action, succeeded or refused, the page re-reads GET /api/board and re-renders from it; no polling, the board changes only after the user's own action, ASM-0004).
 Tokens: --space-4 (gap), --color-bg.
 
 ## Column
@@ -38,9 +38,9 @@ Notes: titles up to 80 characters wrap onto a second line, never truncate; descr
 
 ## CardActions (IconButton ×4)
 Used by: US-003, US-004, US-005 (FR-010). Four 28px icon buttons: move left, move right, edit, delete.
-States: default · hover · focus-visible (--color-focus-ring, 2px, 2px offset) · pressed · disabled (not used by default).
-Tokens: --color-text-secondary, --color-border, --color-text (hover), --radius-control, --space-1.
-Notes: each button has an accessible name ("Move left", "Move right", "Edit", "Delete"), icons are inline SVG at 14px, never emoji. **Pending DEC-007:** whether "move left" on a `todo` card and "move right" on a `done` card is disabled, hidden or sends the request; this inventory does not prescribe it, the previews show both enabled.
+States: default · hover · focus-visible (--color-focus-ring, 2px, 2px offset) · pressed · disabled (edge controls only: "move left" on a `todo` card, "move right" on a `done` card).
+Tokens: --color-text-secondary, --color-border, --color-text (hover), --radius-control, --space-1; disabled: icon and border both --color-border, no hover change, `cursor: not-allowed` (no new token).
+Notes: each button has an accessible name ("Move left", "Move right", "Edit", "Delete"), icons are inline SVG at 14px, never emoji. Decided by ADR-0008: "move left" on a `todo` card and "move right" on a `done` card are rendered but disabled (native `disabled` attribute), so every card keeps four controls (AC-025) and no request is sent; the accessible name stays the same and the disabled state is exposed to assistive technology by the attribute, not by colour. Inactive controls are exempt from the WCAG 1.4.3/1.4.11 contrast minimums, so the faded --color-border icon is allowed; all other controls stay enabled.
 
 ## EditCardForm
 Used by: US-003. Replaces the card body in place.

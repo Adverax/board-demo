@@ -38,12 +38,13 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0009
   tests:
   - TestAddCard_LandsAtEndOfTodo
   - TestAddCard_DescriptionIsOptional
   - TestAddCard_RejectsBlankTitle
   status: partial
-  notes: Board.Add places the card at the end of todo; POST /api/cards returns 201. Success body shape is open (DEC-013).
+  notes: Board.Add places the card at the end of todo; POST /api/cards returns 201 with the created card (ADR-0009).
 - req: FR-003
   description: A card's title and description can be edited without changing its column or position.
   capabilities:
@@ -56,12 +57,13 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0009
   tests:
   - TestEditCard_UpdatesTitleKeepsPlace
   - TestEditCard_UnknownIdNotFound
   - TestEditCard_RejectsEmptyTitle
   status: partial
-  notes: Board.Edit; PATCH /api/cards/{id}. Success body shape is open (DEC-013).
+  notes: Board.Edit; PATCH /api/cards/{id} returns the edited card (ADR-0009).
 - req: FR-004
   description: A card can be deleted; the remaining cards of its column keep dense positions.
   capabilities:
@@ -74,11 +76,12 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0009
   tests:
   - TestDeleteCard_RemovesAndClosesGap
   - TestDeleteCard_UnknownIdNotFound
   status: partial
-  notes: Board.Delete re-densifies the column; DELETE /api/cards/{id}. Success body shape is open (DEC-013).
+  notes: Board.Delete re-densifies the column; DELETE /api/cards/{id} returns 204 with no body (ADR-0009).
 - req: FR-005
   description: A card moves one column right or left and lands at the end of the target column.
   capabilities:
@@ -91,12 +94,14 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0007
+  - ADR-0009
   tests:
   - TestMoveCard_RightLandsAtEnd
   - TestMoveCard_LeftLandsAtEnd
   - TestMoveCard_UnknownIdNotFound
   status: partial
-  notes: Board.Move appends to the target column; POST /api/cards/{id}/move. Codes for same-column/unknown column/malformed body are open (DEC-001).
+  notes: Board.Move appends to the target column; POST /api/cards/{id}/move returns the moved card (ADR-0009); same-column and unknown column are invalid_move, malformed body is validation_failed (ADR-0007).
 - req: FR-006
   description: A move to a non-neighbouring column is refused and changes nothing.
   capabilities:
@@ -109,11 +114,12 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0007
   tests:
   - TestMoveCard_TodoToDoneRefused
   - TestMoveCard_DoneToTodoRefused
   status: partial
-  notes: Adjacency rule INV-003 in Board.Move; invalid_move mapped by the HTTP API. Precedence vs WIP limit is open (DEC-001).
+  notes: Adjacency rule INV-003 in Board.Move; invalid_move mapped by the HTTP API; precedence not_found, validation_failed, invalid_move, wip_limit_exceeded (ADR-0007).
 - req: FR-007
   description: The doing column holds at most 3 cards; a move into a full doing is refused and changes nothing.
   capabilities:
@@ -164,12 +170,13 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0011
   tests:
   - TestDenseOrder_DeleteFirstShiftsUp
   - TestDenseOrder_MoveKeepsBothColumnsDense
   - PropertyTest_DenseOrder_AnyOperationSequence
   status: partial
-  notes: Dense order INV-004 kept inside the aggregate; EC-002 property tool is open (DEC-015).
+  notes: Dense order INV-004 kept inside the aggregate; EC-002 property tests use pgregory.net/rapid state machines (ADR-0011).
 - req: FR-010
   description: One page shows the three columns with their cards; each card has move left, move right, edit and delete controls; the page has a form to add a card.
   capabilities:
@@ -182,15 +189,18 @@ links:
   adrs:
   - ADR-0001
   - ADR-0004
+  - ADR-0008
+  - ADR-0009
+  - ADR-0010
   tests:
   - TestE2E_PageShowsThreeColumnsWithCards
   - TestE2E_CardShowsFourControls
   - TestE2E_AddFormCreatesCardInTodo
   status: partial
-  notes: Embedded page rendered from GET /api/board; edge-control behaviour open (DEC-007); E2E browser driver open (DEC-014).
+  notes: Embedded page rendered from GET /api/board; edge move controls rendered disabled (ADR-0008); page re-reads GET /api/board after every action (ADR-0009); E2E via chromedp in TestE2E_* Go tests (ADR-0010).
   derived: [screens.yml]
   screens: [SCR-001]
-  projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board after a mutation, refresh behaviour pending DEC-013 and ASM-0004', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Edited card shows its new title, 'e2e/root.spec.ts::Card deleted, remaining cards keep dense positions', e2e/root.spec.ts::Card moved to the adjacent column, e2e/root.spec.ts::Doing column holds 3 cards, 'e2e/root.spec.ts::Move left on todo card and move right on done card, behaviour pending DEC-007']}
+  projected: {spec_tests: [e2e/root.spec.ts::Empty board with three empty columns, 'e2e/root.spec.ts::Board with cards in todo, doing and done', 'e2e/root.spec.ts::Board re-read after every action, succeeded or refused, no polling (ASM-0004)', e2e/root.spec.ts::Add form visible with title and description inputs, e2e/root.spec.ts::Card in edit mode, e2e/root.spec.ts::Edited card shows its new title, 'e2e/root.spec.ts::Card deleted, remaining cards keep dense positions', e2e/root.spec.ts::Card moved to the adjacent column, e2e/root.spec.ts::Doing column holds 3 cards, e2e/root.spec.ts::Move left on todo card and move right on done card rendered disabled]}
 - req: FR-011
   description: A refused action shows its reason on the page.
   capabilities:
@@ -203,13 +213,15 @@ links:
   adrs:
   - ADR-0002
   - ADR-0004
+  - ADR-0009
+  - ADR-0010
   tests:
   - TestE2E_WipRefusalShownOnPage
   - TestE2E_InvalidTitleReasonShownOnPage
   - TestE2E_InvalidMoveReasonShownOnPage
   - TestE2E_NotFoundReasonShownOnStalePage
   status: partial
-  notes: Page shows the reason for the CON-004 code; refresh after a refusal open (DEC-013); E2E browser driver open (DEC-014).
+  notes: Page shows the reason for the CON-004 code; after every action, succeeded or refused, the page shows any reason and re-reads GET /api/board (ADR-0009); E2E via chromedp in TestE2E_* Go tests (ADR-0010).
   derived: [screens.yml]
   screens: [SCR-001]
   projected: {spec_tests: [e2e/root.spec.ts::Reason shown for wip_limit_exceeded, e2e/root.spec.ts::Reason shown for invalid_move on a stale page, e2e/root.spec.ts::Reason shown for not_found on a stale page, e2e/root.spec.ts::Reason shown for blank title in add form]}
@@ -239,10 +251,11 @@ links:
   adrs:
   - ADR-0004
   - ADR-0006
+  - ADR-0011
   tests:
   - PropertyTest_DenseOrder_RandomOperations
   status: partial
-  notes: Property test against internal/board without HTTP; generator tool open (DEC-015).
+  notes: Property test against internal/board without HTTP; pgregory.net/rapid state machines with shrinking (ADR-0011).
 - req: NFR-003
   description: e2e_capability_pass_rate 100% under the binary started with no PORT set, every capability exercised in a browser
   capabilities:
@@ -255,11 +268,12 @@ links:
   - COMP-003
   adrs:
   - ADR-0003
+  - ADR-0010
   tests:
   - TestE2E_BinaryServesPageOnDefaultPort
   - TestE2E_BinaryHonoursPortVariable
   status: partial
-  notes: The binary itself started on PORT or 8080; E2E browser driver open (DEC-014).
+  notes: The binary itself started on PORT or 8080; E2E via chromedp in TestE2E_* Go tests (ADR-0010).
 - req: CON-001
   description: Go 1.26 and standard library net/http for the HTTP layer.
   contexts:
