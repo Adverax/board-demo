@@ -18,12 +18,16 @@ US-003: As a TeamMember, I want to edit a card's title and description, so
         that the card stays accurate.
         Screen: Board at / [fr: FR-010]
           State edit_mode: Card in edit mode [click: #edit-card]
+          State edit_saved: Edited card shows its new title
 US-004: As a TeamMember, I want to delete a card, so that dropped work
         leaves the board.
+        Screen: Board at / [fr: FR-010]
+          State card_deleted: Card deleted, remaining cards keep dense positions
 US-005: As a TeamMember, I want to move a card one column left or right so
         that it lands at the end of the target column, so that the board
         reflects progress.
         Screen: Board at / [fr: FR-010]
+          State card_moved: Card moved to the adjacent column
           State doing_at_wip_limit: Doing column holds 3 cards
           State edge_controls_pending_dec007: Move left on todo card and move right on done card, behaviour pending DEC-007
 US-006: As a TeamMember, I want a refused action to show its reason on the

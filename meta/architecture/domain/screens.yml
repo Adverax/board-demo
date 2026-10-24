@@ -5,7 +5,7 @@ screens:
   - id: "SCR-001"
     route: "/"
     actor: "ACT-001"
-    commands: ["CMD-001", "CMD-002", "CMD-004"]
+    commands: ["CMD-001", "CMD-002", "CMD-003", "CMD-004"]
     queries: ["GetBoard"]
     states:
       - id: "empty"
@@ -39,6 +39,24 @@ screens:
           actions:
             - {do: "click", target: "#edit-card"}
         test: "e2e/root.spec.ts::Card in edit mode"
+        trace: {fr: "FR-010", component: "COMP-003"}
+      - id: "edit_saved"
+        name: "Edited card shows its new title"
+        recipe:
+          route: "/"
+        test: "e2e/root.spec.ts::Edited card shows its new title"
+        trace: {fr: "FR-010", component: "COMP-003"}
+      - id: "card_deleted"
+        name: "Card deleted, remaining cards keep dense positions"
+        recipe:
+          route: "/"
+        test: "e2e/root.spec.ts::Card deleted, remaining cards keep dense positions"
+        trace: {fr: "FR-010", component: "COMP-003"}
+      - id: "card_moved"
+        name: "Card moved to the adjacent column"
+        recipe:
+          route: "/"
+        test: "e2e/root.spec.ts::Card moved to the adjacent column"
         trace: {fr: "FR-010", component: "COMP-003"}
       - id: "doing_at_wip_limit"
         name: "Doing column holds 3 cards"
