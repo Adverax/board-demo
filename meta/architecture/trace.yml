@@ -145,7 +145,6 @@ links:
   - TestMoveCard_IntoFullDoingRefused
   - TestMoveCard_20ConcurrentMovesKeepDoingAtMost3
   - TestMoveCard_LeftIntoFullDoingRefused
-  - PropertyTest_Doing_NeverExceedsWIPUnderConcurrency
   - TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency
   status: covered
 - req: FR-008
@@ -182,7 +181,6 @@ links:
   tests:
   - TestDenseOrder_DeleteFirstShiftsUp
   - TestDenseOrder_MoveKeepsBothColumnsDense
-  - PropertyTest_DenseOrder_AnyOperationSequence
   - TestPropertyTest_DenseOrder_AnyOperationSequence
   status: covered
   notes: >-
@@ -267,7 +265,6 @@ links:
   - ADR-0006
   - ADR-0011
   tests:
-  - PropertyTest_DenseOrder_RandomOperations
   - TestPropertyTest_DenseOrder_RandomOperations
   status: covered
   notes: >-
