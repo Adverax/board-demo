@@ -24,8 +24,13 @@ links:
   tests:
   - TestGetBoard_GroupsCardsByColumnInOrder
   - TestGetBoard_EmptyBoardHasThreeEmptyColumns
-  status: partial
-  notes: Board.Snapshot returns a copy grouped by the fixed columns; GET /api/board renders it.
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-001, 2026-10-24): covering tests found in
+    the tracked code on that date — TestGetBoard_GroupsCardsByColumnInOrder,
+    TestGetBoard_EmptyBoardHasThreeEmptyColumns. Derived by git grep -w over
+    the code (architecture model and docs excluded) rather than asserted by
+    hand.
 - req: FR-002
   description: A new card with a title and an optional description lands at the end of todo.
   capabilities:
@@ -43,8 +48,7 @@ links:
   - TestAddCard_LandsAtEndOfTodo
   - TestAddCard_DescriptionIsOptional
   - TestAddCard_RejectsBlankTitle
-  status: partial
-  notes: Board.Add places the card at the end of todo; POST /api/cards returns 201 with the created card (ADR-0009).
+  status: covered
 - req: FR-003
   description: A card's title and description can be edited without changing its column or position.
   capabilities:
@@ -100,8 +104,13 @@ links:
   - TestMoveCard_RightLandsAtEnd
   - TestMoveCard_LeftLandsAtEnd
   - TestMoveCard_UnknownIdNotFound
-  status: partial
-  notes: Board.Move appends to the target column; POST /api/cards/{id}/move returns the moved card (ADR-0009); same-column and unknown column are invalid_move, malformed body is validation_failed (ADR-0007).
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-001, 2026-10-24): covering tests found in
+    the tracked code on that date — TestMoveCard_RightLandsAtEnd,
+    TestMoveCard_LeftLandsAtEnd, TestMoveCard_UnknownIdNotFound. Derived by
+    git grep -w over the code (architecture model and docs excluded) rather
+    than asserted by hand.
 - req: FR-006
   description: A move to a non-neighbouring column is refused and changes nothing.
   capabilities:
@@ -118,8 +127,7 @@ links:
   tests:
   - TestMoveCard_TodoToDoneRefused
   - TestMoveCard_DoneToTodoRefused
-  status: partial
-  notes: Adjacency rule INV-003 in Board.Move; invalid_move mapped by the HTTP API; precedence not_found, validation_failed, invalid_move, wip_limit_exceeded (ADR-0007).
+  status: covered
 - req: FR-007
   description: The doing column holds at most 3 cards; a move into a full doing is refused and changes nothing.
   capabilities:
@@ -138,8 +146,8 @@ links:
   - TestMoveCard_20ConcurrentMovesKeepDoingAtMost3
   - TestMoveCard_LeftIntoFullDoingRefused
   - PropertyTest_Doing_NeverExceedsWIPUnderConcurrency
-  status: partial
-  notes: WIP limit INV-002 checked and applied in one critical section (ADR-0006); EC-001 guarantee per ADR-0005.
+  - TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency
+  status: covered
 - req: FR-008
   description: A card title is not empty after trimming whitespace and is at most 80 characters, on add and on edit.
   capabilities:
@@ -175,8 +183,15 @@ links:
   - TestDenseOrder_DeleteFirstShiftsUp
   - TestDenseOrder_MoveKeepsBothColumnsDense
   - PropertyTest_DenseOrder_AnyOperationSequence
-  status: partial
-  notes: Dense order INV-004 kept inside the aggregate; EC-002 property tests use pgregory.net/rapid state machines (ADR-0011).
+  - TestPropertyTest_DenseOrder_AnyOperationSequence
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-001, 2026-10-24): covering tests found in
+    the tracked code on that date — TestDenseOrder_DeleteFirstShiftsUp,
+    TestDenseOrder_MoveKeepsBothColumnsDense,
+    TestPropertyTest_DenseOrder_AnyOperationSequence. Derived by git grep -w
+    over the code (architecture model and docs excluded) rather than
+    asserted by hand.
 - req: FR-010
   description: One page shows the three columns with their cards; each card has move left, move right, edit and delete controls; the page has a form to add a card.
   capabilities:
@@ -238,8 +253,7 @@ links:
   - ADR-0006
   tests:
   - TestConcurrency_20SimultaneousMovesIntoDoing
-  status: partial
-  notes: Moves serialised by the aggregate mutex; run with go test -race.
+  status: covered
 - req: NFR-002
   description: dense_order_violations 0 violations under after any random sequence of add, move, edit and delete operations
   capabilities:
@@ -254,8 +268,14 @@ links:
   - ADR-0011
   tests:
   - PropertyTest_DenseOrder_RandomOperations
-  status: partial
-  notes: Property test against internal/board without HTTP; pgregory.net/rapid state machines with shrinking (ADR-0011).
+  - TestPropertyTest_DenseOrder_RandomOperations
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-001, 2026-10-24): covering tests found in
+    the tracked code on that date —
+    TestPropertyTest_DenseOrder_RandomOperations. Derived by git grep -w
+    over the code (architecture model and docs excluded) rather than
+    asserted by hand.
 - req: NFR-003
   description: e2e_capability_pass_rate 100% under the binary started with no PORT set, every capability exercised in a browser
   capabilities:
