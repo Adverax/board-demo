@@ -1,7 +1,11 @@
 # internal/httpapi
 
-The JSON API (COMP-002) on the standard `net/http` ServeMux (ADR-0002). `New(*board.Board)`
-returns the handler.
+The JSON API (COMP-002) on the standard `net/http` ServeMux (ADR-0002), plus the page
+route. `New(*board.Board)` returns the API handler (the five routes below).
+`NewApp(*board.Board, fs.FS) (http.Handler, error)` (`page.go`) returns the same routes
+plus the embedded page (CON-005): `GET /` serves `index.html` (with a same-origin-only
+Content-Security-Policy) and `GET /static/{name}` serves `static/<name>` (404 when absent).
+A page FS without `index.html` is an error. `cmd/board` wires it with `web.Page()`.
 
 | route | success | refusals |
 | --- | --- | --- |
@@ -22,3 +26,4 @@ is `validation_failed`; any string `to` that is not an adjacent column, the empt
 included, is `invalid_move`; `not_found` wins over both (ADR-0007). Handlers change
 cards only through the exported Board API (ADR-0004/R2). Contract tests: `api_test.go`
 (board, add, move) and `edit_delete_test.go` (edit, delete, title limits, the route set).
+`page_test.go` covers the page routes against an in-memory FS.
