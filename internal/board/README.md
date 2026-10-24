@@ -13,6 +13,10 @@ and the cards on them, with the rules INV-001..INV-005.
   `*Column`: `nil` means the request named no readable target (`ErrValidation`); any
   non-nil value, the empty string included, is a named target, and an unknown one is
   `ErrInvalidMove`.
+- `Add` and `Edit` share one title rule (INV-001): trimmed, not empty, at most
+  `MaxTitleLength` (80) runes (ASM-0002). `Edit` takes `*string` fields, `nil` leaving a
+  field unchanged (ASM-0001); it never changes column or position. `Delete` closes the
+  gap in its column (INV-004).
 - No HTTP imports (ADR-0004/R1, pinned by `TestBoard_DoesNotImportHTTP`).
 
 Tests: unit tests in `board_test.go`; rapid property and concurrency tests in

@@ -2,6 +2,7 @@ package board_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/adverax/board-demo/internal/board"
@@ -275,4 +276,61 @@ func TestSnapshot_IsACopy(t *testing.T) {
 	if len(again.Lanes[0].Cards) != 1 || len(again.Lanes[1].Cards) != 1 || again.Lanes[1].Cards[0].Title != "card" {
 		t.Fatalf("caller mutation leaked into the board: %+v", again)
 	}
+}
+
+// INV-001, ASM-0002: the title limit counts runes after trimming, on add and
+// on edit alike (validTitle is shared).
+func TestTitle_LengthCountsRunesAfterTrimming(t *testing.T) {
+	cases := []struct {
+		name  string
+		title string
+		ok    bool
+	}{
+		{"80 ascii", strings.Repeat("a", 80), true},
+		{"81 ascii", strings.Repeat("a", 81), false},
+		{"80 multibyte runes (160 bytes)", strings.Repeat("я", 80), true},
+		{"81 multibyte runes", strings.Repeat("я", 81), false},
+		{"80 runes padded with whitespace", "  \t" + strings.Repeat("b", 80) + " \n", true},
+		{"81 runes padded with whitespace", " " + strings.Repeat("b", 81) + " ", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := board.New()
+			c, err := b.Add(tc.title, "")
+			if tc.ok != (err == nil) || (!tc.ok && !errors.Is(err, board.ErrValidation)) {
+				t.Fatalf("Add err = %v, want ok=%v", err, tc.ok)
+			}
+			if tc.ok && c.Title != strings.TrimSpace(tc.title) {
+				t.Fatalf("Add title = %q", c.Title)
+			}
+			id := fill(t, b, 1)[0]
+			got, err := b.Edit(id, &tc.title, nil)
+			if tc.ok != (err == nil) || (!tc.ok && !errors.Is(err, board.ErrValidation)) {
+				t.Fatalf("Edit err = %v, want ok=%v", err, tc.ok)
+			}
+			if tc.ok && got.Title != strings.TrimSpace(tc.title) {
+				t.Fatalf("Edit title = %q", got.Title)
+			}
+			if !tc.ok {
+				if s := b.Snapshot(); s.Lanes[0].Cards[len(s.Lanes[0].Cards)-1].Title != "card" {
+					t.Fatalf("refused edit changed the title: %+v", s)
+				}
+			}
+		})
+	}
+}
+
+// FR-004, INV-004: deleting a middle card closes the gap; the others keep
+// their relative order.
+func TestDelete_MiddleClosesGap(t *testing.T) {
+	b := board.New()
+	ids := fill(t, b, 3)
+	if err := b.Delete(ids[1]); err != nil {
+		t.Fatal(err)
+	}
+	s := b.Snapshot()
+	if got := laneIDs(s, board.Todo); !equal(got, []string{ids[0], ids[2]}) {
+		t.Fatalf("todo = %v", got)
+	}
+	assertDense(t, s)
 }
