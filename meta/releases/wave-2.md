@@ -25,3 +25,6 @@
 
 ## Metrics
 - snapshot not captured: `forge:metrics` refuses without the signal definitions registry `meta/metrics/signal-definitions.yml` (same as wave 1).
+
+## Closure notes
+  ↳ FR-003, FR-004, FR-008 converged in wave 3 (2026-10-24): the UI surface they lacked shipped with CARD-003.
