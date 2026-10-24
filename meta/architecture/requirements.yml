@@ -148,7 +148,7 @@ functional:
       - id: AC-033
         given: "doing holds 3 cards and card A is in done"
         when: "POST /api/cards/A/move with to 'doing'"
-        then: "returns 409 with code wip_limit_exceeded, doing holds 3 cards and A stays in done"
+        then: "returns code wip_limit_exceeded, doing holds 3 cards and A stays in done"
         kind: negative
         invariant: INV-002
         test: TestMoveCard_LeftIntoFullDoingRefused

@@ -39,3 +39,15 @@ The title limit of 80 is measured in Unicode characters after trimming surroundi
 - closed_by: null
 
 A move request with a malformed body, or a missing or non-string to, is answered with validation_failed.
+
+## ASM-0004 · The board page does not auto-refresh or poll
+- status: unvalidated
+- owner: roman.miakotin
+- source: delta domain extraction 2026-10-24, AC-034, AC-035
+- date: 2026-10-24
+- check: "Operator confirms by 2026-11-07 that the brief requires no polling or live update, so the page keeps a stale DOM between page load and a user action (AC-034, AC-035 depend on it)"
+- fatal: false
+- basis: guess
+- closed_by: null
+
+The page loads the board once and does not poll or push-refresh; a click acts on the DOM as loaded.
