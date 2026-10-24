@@ -1,0 +1,28 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+events:
+  - id: EVT-001
+    name: CardAdded
+    triggered_by: CMD-001
+    aggregate: AGG-001
+    source: [US-002]
+    payload_summary: card id, title, description, column todo, position
+  - id: EVT-002
+    name: CardEdited
+    triggered_by: CMD-002
+    aggregate: AGG-001
+    source: [US-003]
+    payload_summary: card id, new title, new description
+  - id: EVT-003
+    name: CardDeleted
+    triggered_by: CMD-003
+    aggregate: AGG-001
+    source: [US-004]
+    payload_summary: card id, former column; following cards shift up
+  - id: EVT-004
+    name: CardMoved
+    triggered_by: CMD-004
+    aggregate: AGG-001
+    source: [US-005]
+    payload_summary: card id, from column, to column, new position at end of target

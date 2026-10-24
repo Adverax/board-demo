@@ -1,0 +1,37 @@
+terms:
+  - id: TERM-001
+    term: WIP limit
+    definition: The maximum number of cards the doing column may hold (3). A move into a full doing is refused.
+    context: unknown
+    aliases: [work-in-progress limit]
+    source: [US-005, US-006]
+  - id: TERM-002
+    term: Dense order
+    definition: Within every column, card positions are exactly 0..n-1 with no gaps or duplicates after any operation.
+    context: unknown
+    aliases: [dense positions]
+    source: [US-002, US-004, US-005]
+  - id: TERM-003
+    term: Adjacent move
+    definition: A move of a card to a neighbouring column only (todo to doing, doing to done, or back). Any other move is refused.
+    context: unknown
+    aliases: [neighbouring move]
+    source: [US-005, US-006]
+  - id: TERM-004
+    term: Board
+    definition: The single shared kanban board holding the three columns and all cards; everyone sees the same state.
+    context: unknown
+    aliases: []
+    source: [US-001]
+  - id: TERM-005
+    term: Card
+    definition: A work item with a required title and an optional description, sitting in exactly one column at one position. Two cards are the same card if and only if they have the same id; equal titles do not make them the same.
+    context: unknown
+    aliases: [work item]
+    source: [US-001, US-002, US-003, US-004, US-005]
+  - id: TERM-006
+    term: Column
+    definition: One of the three fixed board lanes, in order todo, doing, done; not renamable or extendable. Two columns are the same column if and only if they have the same name.
+    context: unknown
+    aliases: [lane]
+    source: [US-001, US-005]

@@ -1,0 +1,5 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+# No external systems: in-memory storage, no auth provider, the page is served by the same binary.
+external_systems: []

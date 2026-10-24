@@ -1,0 +1,8 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+actors:
+  - id: ACT-001
+    name: TeamMember
+    type: human
+    description: Opens the page, adds, edits, moves and deletes cards on the one shared board. The only role; no authentication.

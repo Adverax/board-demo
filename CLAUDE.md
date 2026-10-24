@@ -27,7 +27,7 @@ A fresh Go project (module `github.com/adverax/board-demo`, Go 1.26) used for a 
 
 ## Language
 
-Talk to the user in English: the session is shown to an audience. Project artifacts (code, comments, `meta/` files, docs) are written in English.
+Talk to the user in Russian: the dialogue (answers, questions, status updates) is in Russian. Project artifacts (code, comments, `meta/` files, docs, commit messages) stay in English; do not switch `language:` in `meta/.skills.yml` to `ru`, because that key also makes generated artifacts Russian.
 
 ## Attribution
 

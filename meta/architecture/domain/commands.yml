@@ -1,0 +1,32 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+commands:
+  - id: CMD-001
+    name: AddCard
+    actor: ACT-001
+    target_aggregate: AGG-001
+    preconditions: [INV-001]
+    produces: [EVT-001]
+    source: [US-002]
+  - id: CMD-002
+    name: EditCard
+    actor: ACT-001
+    target_aggregate: AGG-001
+    preconditions: [INV-001]
+    produces: [EVT-002]
+    source: [US-003]
+  - id: CMD-003
+    name: DeleteCard
+    actor: ACT-001
+    target_aggregate: AGG-001
+    preconditions: []
+    produces: [EVT-003]
+    source: [US-004]
+  - id: CMD-004
+    name: MoveCard
+    actor: ACT-001
+    target_aggregate: AGG-001
+    preconditions: [INV-002, INV-003]
+    produces: [EVT-004]
+    source: [US-005]

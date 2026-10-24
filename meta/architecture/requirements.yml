@@ -1,0 +1,350 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+functional:
+  - id: FR-001
+    statement: "Reading the board returns every card grouped into the three fixed columns todo, doing, done, in that order, each column ordered by position."
+    source: [US-001]
+    acceptance:
+      - id: AC-001
+        given: "todo holds cards A (pos 0); doing holds B (pos 0) and C (pos 1); done is empty"
+        when: "GET /api/board is called"
+        then: "the response lists columns in order todo, doing, done with todo=[A], doing=[B, C], done=[]"
+        kind: happy
+        invariant: INV-005
+        test: TestGetBoard_GroupsCardsByColumnInOrder
+      - id: AC-002
+        given: "a board with no cards"
+        when: "GET /api/board is called"
+        then: "the response lists three columns todo, doing, done, each with 0 cards"
+        kind: boundary
+        test: TestGetBoard_EmptyBoardHasThreeEmptyColumns
+  - id: FR-002
+    statement: "A new card with a title and an optional description lands at the end of todo."
+    source: [US-002]
+    acceptance:
+      - id: AC-003
+        given: "todo holds 2 cards"
+        when: "POST /api/cards with title 'Write docs' and description 'draft'"
+        then: "returns 201 and the new card is in todo at position 2"
+        kind: happy
+        test: TestAddCard_LandsAtEndOfTodo
+      - id: AC-004
+        given: "an empty board"
+        when: "POST /api/cards with title 'Write docs' and no description"
+        then: "returns 201 and the card has an empty description"
+        kind: happy
+        test: TestAddCard_DescriptionIsOptional
+      - id: AC-005
+        given: "todo holds 2 cards"
+        when: "POST /api/cards with title '   '"
+        then: "returns code validation_failed and todo still holds 2 cards"
+        kind: negative
+        test: TestAddCard_RejectsBlankTitle
+  - id: FR-003
+    statement: "A card's title and description can be edited without changing its column or position."
+    source: [US-003]
+    acceptance:
+      - id: AC-006
+        given: "card A in doing at position 1 with title 'Old'"
+        when: "PATCH /api/cards/A with title 'New'"
+        then: "the card has title 'New' and stays in doing at position 1"
+        kind: happy
+        test: TestEditCard_UpdatesTitleKeepsPlace
+      - id: AC-007
+        given: "no card with id 'missing'"
+        when: "PATCH /api/cards/missing with title 'New'"
+        then: "returns code not_found"
+        kind: negative
+        test: TestEditCard_UnknownIdNotFound
+      - id: AC-008
+        given: "card A with title 'Old'"
+        when: "PATCH /api/cards/A with title ''"
+        then: "returns code validation_failed and the title remains 'Old'"
+        kind: negative
+        test: TestEditCard_RejectsEmptyTitle
+  - id: FR-004
+    statement: "A card can be deleted; the remaining cards of its column keep dense positions."
+    source: [US-004]
+    acceptance:
+      - id: AC-009
+        given: "todo holds cards A, B, C at positions 0, 1, 2"
+        when: "DELETE /api/cards/B"
+        then: "B is gone and A is at position 0, C at position 1"
+        kind: happy
+        invariant: INV-004
+        test: TestDeleteCard_RemovesAndClosesGap
+      - id: AC-010
+        given: "no card with id 'missing'"
+        when: "DELETE /api/cards/missing"
+        then: "returns code not_found and the board is unchanged"
+        kind: negative
+        test: TestDeleteCard_UnknownIdNotFound
+  - id: FR-005
+    statement: "A card moves one column right or left and lands at the end of the target column."
+    source: [US-005]
+    acceptance:
+      - id: AC-011
+        given: "card A in todo, doing holds 1 card"
+        when: "POST /api/cards/A/move with to 'doing'"
+        then: "A is in doing at position 1 and no longer in todo"
+        kind: happy
+        test: TestMoveCard_RightLandsAtEnd
+      - id: AC-012
+        given: "card A in doing, todo holds 2 cards"
+        when: "POST /api/cards/A/move with to 'todo'"
+        then: "A is in todo at position 2"
+        kind: happy
+        test: TestMoveCard_LeftLandsAtEnd
+      - id: AC-013
+        given: "no card with id 'missing'"
+        when: "POST /api/cards/missing/move with to 'doing'"
+        then: "returns code not_found"
+        kind: negative
+        test: TestMoveCard_UnknownIdNotFound
+  - id: FR-006
+    statement: "A move to a non-neighbouring column is refused and changes nothing."
+    source: [US-005, US-006]
+    acceptance:
+      - id: AC-014
+        given: "card A in todo"
+        when: "POST /api/cards/A/move with to 'done'"
+        then: "returns code invalid_move and A stays in todo"
+        kind: negative
+        invariant: INV-003
+        test: TestMoveCard_TodoToDoneRefused
+      - id: AC-015
+        given: "card A in done"
+        when: "POST /api/cards/A/move with to 'todo'"
+        then: "returns code invalid_move and A stays in done"
+        kind: negative
+        invariant: INV-003
+        test: TestMoveCard_DoneToTodoRefused
+  - id: FR-007
+    statement: "The doing column holds at most 3 cards; a move into a full doing is refused and changes nothing."
+    source: [US-005, US-006]
+    acceptance:
+      - id: AC-016
+        given: "doing holds 2 cards and card A is in todo"
+        when: "POST /api/cards/A/move with to 'doing'"
+        then: "the move succeeds and doing holds 3 cards"
+        kind: boundary
+        invariant: INV-002
+        test: TestMoveCard_IntoDoingAtTwoSucceeds
+      - id: AC-017
+        given: "doing holds 3 cards and card A is in todo"
+        when: "POST /api/cards/A/move with to 'doing'"
+        then: "returns code wip_limit_exceeded, doing holds 3 cards and A stays in todo"
+        kind: negative
+        invariant: INV-002
+        test: TestMoveCard_IntoFullDoingRefused
+      - id: AC-018
+        given: "doing is empty and todo holds 20 cards"
+        when: "20 moves into doing are sent simultaneously"
+        then: "exactly 3 moves succeed, 17 return wip_limit_exceeded and doing holds 3 cards"
+        kind: concurrency
+        invariant: INV-002
+        test: TestMoveCard_20ConcurrentMovesKeepDoingAtMost3
+    engineering_constraints:
+      - id: EC-001
+        statement: For any number of simultaneous moves into doing, the doing column never holds more than 3 cards at any observable instant
+        kind: concurrency
+        instances: [AC-018]
+        invariant: INV-002
+        test: PropertyTest_Doing_NeverExceedsWIPUnderConcurrency
+  - id: FR-008
+    statement: "A card title is not empty after trimming whitespace and is at most 80 characters, on add and on edit."
+    source: [US-002, US-003, US-006]
+    acceptance:
+      - id: AC-019
+        given: "an empty board"
+        when: "POST /api/cards with a title of exactly 80 characters"
+        then: "returns 201 and the card is created"
+        kind: boundary
+        test: TestTitle_80CharsAccepted
+      - id: AC-020
+        given: "an empty board"
+        when: "POST /api/cards with a title of 81 characters"
+        then: "returns code validation_failed and no card is created"
+        kind: boundary
+        invariant: INV-001
+        test: TestTitle_81CharsRejected
+      - id: AC-021
+        given: "card A with title 'Old'"
+        when: "PATCH /api/cards/A with title of spaces and a tab"
+        then: "returns code validation_failed and the title remains 'Old'"
+        kind: negative
+        invariant: INV-001
+        test: TestTitle_WhitespaceOnlyRejectedOnEdit
+  - id: FR-009
+    statement: "Within every column card positions are 0..n-1 without gaps or duplicates after any operation."
+    source: [US-002, US-004, US-005]
+    acceptance:
+      - id: AC-022
+        given: "todo holds cards A, B, C at positions 0, 1, 2"
+        when: "A is deleted"
+        then: "B is at position 0 and C at position 1"
+        kind: happy
+        invariant: INV-004
+        test: TestDenseOrder_DeleteFirstShiftsUp
+      - id: AC-023
+        given: "todo holds 3 cards and doing holds 1 card"
+        when: "the first todo card is moved to doing"
+        then: "todo positions are 0,1 and doing positions are 0,1"
+        kind: boundary
+        invariant: INV-004
+        test: TestDenseOrder_MoveKeepsBothColumnsDense
+    engineering_constraints:
+      - id: EC-002
+        statement: After any sequence of add, move, edit and delete operations, every column's positions are exactly 0..n-1
+        kind: consistency
+        invariant: INV-004
+        test: PropertyTest_DenseOrder_AnyOperationSequence
+  - id: FR-010
+    statement: "One page shows the three columns with their cards; each card has move left, move right, edit and delete controls; the page has a form to add a card."
+    source: [US-001, US-002, US-003, US-004, US-005]
+    acceptance:
+      - id: AC-024
+        given: "the board holds todo=[A], doing=[B], done=[C]"
+        when: "the page is opened in a browser"
+        then: "three columns titled todo, doing, done are shown with cards A, B, C in them respectively"
+        kind: happy
+        test: TestE2E_PageShowsThreeColumnsWithCards
+      - id: AC-025
+        given: "card A is on the board"
+        when: "the page is opened in a browser"
+        then: "card A shows move left, move right, edit and delete controls"
+        kind: happy
+        test: TestE2E_CardShowsFourControls
+      - id: AC-026
+        given: "an empty board"
+        when: "a title 'Ship it' is submitted through the add form"
+        then: "a card 'Ship it' appears in the todo column"
+        kind: happy
+        test: TestE2E_AddFormCreatesCardInTodo
+  - id: FR-011
+    statement: "A refused action shows its reason on the page."
+    source: [US-006]
+    acceptance:
+      - id: AC-027
+        given: "doing holds 3 cards and card A is in todo"
+        when: "move right is clicked on A"
+        then: "the page shows the reason for code wip_limit_exceeded and A stays in todo"
+        kind: negative
+        test: TestE2E_WipRefusalShownOnPage
+      - id: AC-028
+        given: "the add form is open"
+        when: "a blank title is submitted"
+        then: "the page shows the reason for code validation_failed and no card is added"
+        kind: negative
+        test: TestE2E_InvalidTitleReasonShownOnPage
+
+non_functional:
+  - id: NFR-001
+    category: scalability
+    metric: max_doing_cards_under_concurrent_moves
+    threshold: "<= 3 cards"
+    condition: 20 simultaneous moves into doing
+    rationale: Concurrent requests must never break the WIP limit.
+    acceptance:
+      - id: AC-029
+        given: "doing is empty and todo holds 20 cards"
+        when: "20 moves into doing run simultaneously"
+        then: "max_doing_cards_under_concurrent_moves <= 3"
+        kind: concurrency
+        test: TestConcurrency_20SimultaneousMovesIntoDoing
+  - id: NFR-002
+    category: maintainability
+    metric: dense_order_violations
+    threshold: "0 violations"
+    condition: after any random sequence of add, move, edit and delete operations
+    rationale: Release criterion from the brief; shows the dense-order rule survives arbitrary use.
+    acceptance:
+      - id: AC-030
+        given: "a randomly generated sequence of add, move, edit and delete operations"
+        when: "the sequence is applied to an empty board"
+        then: "dense_order_violations == 0 after every operation"
+        kind: boundary
+        test: PropertyTest_DenseOrder_RandomOperations
+  - id: NFR-003
+    category: operability
+    metric: e2e_capability_pass_rate
+    threshold: "100%"
+    condition: the binary started with no PORT set, every capability exercised in a browser
+    rationale: Release criterion from the brief; the binary starts, serves the page and every capability works end to end.
+    acceptance:
+      - id: AC-031
+        given: "the binary is started with PORT unset"
+        when: "GET / is requested on port 8080"
+        then: "returns 200 with the board page"
+        kind: happy
+        test: TestE2E_BinaryServesPageOnDefaultPort
+      - id: AC-032
+        given: "the binary is started with PORT=9090"
+        when: "GET / is requested on port 9090"
+        then: "returns 200 with the board page"
+        kind: boundary
+        test: TestE2E_BinaryHonoursPortVariable
+
+nfr_coverage:
+  availability:
+    status: not_applicable
+    reason: "CON-002: in-memory storage lost on restart, single local process; an uptime target does not apply"
+  compliance:
+    status: surfaced
+    ref: DEC-004
+  cost:
+    status: surfaced
+    ref: DEC-005
+  maintainability:
+    status: covered
+    refs: [NFR-002]
+  observability:
+    status: surfaced
+    ref: DEC-003
+  operability:
+    status: covered
+    refs: [NFR-003]
+  performance:
+    status: surfaced
+    ref: DEC-002
+  scalability:
+    status: covered
+    refs: [NFR-001]
+  security:
+    status: not_applicable
+    reason: "CON-007: no authentication, users or roles are in scope"
+
+constraints:
+  - id: CON-001
+    type: technical
+    statement: "Go 1.26 and standard library net/http for the HTTP layer."
+    source: docs/board-service.md
+  - id: CON-002
+    type: technical
+    statement: "In-memory storage guarded by a mutex; the board is lost on restart."
+    source: docs/board-service.md
+  - id: CON-003
+    type: technical
+    statement: "Endpoints: GET /api/board, POST /api/cards, PATCH /api/cards/{id}, POST /api/cards/{id}/move with body {\"to\": \"<column>\"}, DELETE /api/cards/{id}."
+    source: docs/board-service.md
+  - id: CON-004
+    type: technical
+    statement: "Errors are a JSON object with a stable code field: validation_failed, not_found, wip_limit_exceeded, invalid_move."
+    source: docs/board-service.md
+  - id: CON-005
+    type: technical
+    statement: "The page is plain HTML, CSS and JavaScript with no build step, embedded with go:embed and served by the same process."
+    source: docs/board-service.md
+  - id: CON-006
+    type: technical
+    statement: "One binary; port from the PORT environment variable, default 8080."
+    source: docs/board-service.md
+  - id: CON-007
+    type: organizational
+    statement: "No authentication."
+    source: docs/board-service.md
+  - id: CON-008
+    type: organizational
+    statement: "Every rule is covered by at least one named test."
+    source: docs/board-service.md

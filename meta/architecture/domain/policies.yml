@@ -1,0 +1,5 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+# No policies: the brief defines no event-triggered reactions (archive is "Later", not modelled).
+policies: []

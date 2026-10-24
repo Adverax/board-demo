@@ -1,0 +1,18 @@
+# generated_by: architect-domain-extraction
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+aggregates:
+  - id: AGG-001
+    name: Board
+    description: The single shared board. Owns the three fixed columns and the cards (title, description, column, position) on them. Cards are entities inside it because the WIP limit and dense order span cards.
+    invariants:
+      - id: INV-001
+        statement: A card title is not empty after trimming whitespace and is at most 80 characters.
+      - id: INV-002
+        statement: The doing column holds at most 3 cards; a move into a full doing is refused and changes nothing.
+      - id: INV-003
+        statement: A card moves only to a neighbouring column (todo-doing, doing-done, and back); any other move is refused and changes nothing.
+      - id: INV-004
+        statement: Within every column card positions are exactly 0..n-1 without gaps or duplicates after any operation, including delete and move.
+      - id: INV-005
+        statement: The board has exactly three columns in fixed order todo, doing, done.
