@@ -66,8 +66,13 @@ links:
   - TestEditCard_UpdatesTitleKeepsPlace
   - TestEditCard_UnknownIdNotFound
   - TestEditCard_RejectsEmptyTitle
-  status: partial
-  notes: Board.Edit; PATCH /api/cards/{id} returns the edited card (ADR-0009).
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-002, 2026-10-24): covering tests found in
+    the tracked code on that date — TestEditCard_UpdatesTitleKeepsPlace,
+    TestEditCard_UnknownIdNotFound, TestEditCard_RejectsEmptyTitle. Derived
+    by git grep -w over the code (architecture model and docs excluded)
+    rather than asserted by hand.
 - req: FR-004
   description: A card can be deleted; the remaining cards of its column keep dense positions.
   capabilities:
@@ -84,8 +89,12 @@ links:
   tests:
   - TestDeleteCard_RemovesAndClosesGap
   - TestDeleteCard_UnknownIdNotFound
-  status: partial
-  notes: Board.Delete re-densifies the column; DELETE /api/cards/{id} returns 204 with no body (ADR-0009).
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-002, 2026-10-24): covering tests found in
+    the tracked code on that date — TestDeleteCard_RemovesAndClosesGap,
+    TestDeleteCard_UnknownIdNotFound. Derived by git grep -w over the code
+    (architecture model and docs excluded) rather than asserted by hand.
 - req: FR-005
   description: A card moves one column right or left and lands at the end of the target column.
   capabilities:
@@ -164,8 +173,14 @@ links:
   - TestTitle_WhitespaceOnlyRejectedOnEdit
   - TestTitle_81CharsRejectedOnEdit
   - TestTitle_80CharsAcceptedOnEdit
-  status: partial
-  notes: Title rule INV-001 in Board.Add/Edit; validation_failed mapped by the HTTP API.
+  status: covered
+  notes: >-
+    BUILT (trace write-back, CARD-002, 2026-10-24): covering tests found in
+    the tracked code on that date — TestTitle_80CharsAccepted,
+    TestTitle_81CharsRejected, TestTitle_WhitespaceOnlyRejectedOnEdit,
+    TestTitle_81CharsRejectedOnEdit, TestTitle_80CharsAcceptedOnEdit.
+    Derived by git grep -w over the code (architecture model and docs
+    excluded) rather than asserted by hand.
 - req: FR-009
   description: Within every column card positions are 0..n-1 without gaps or duplicates after any operation.
   capabilities:
