@@ -1,0 +1,28 @@
+# generated_by: architect-capability-mapping
+# generated_at: 2026-10-24T00:00:00Z
+# tier: medium
+capabilities:
+  - id: CAP-001
+    name: Card management
+    description: Capturing, correcting and dropping work items on the board, with title rules and dense card order kept intact.
+    events: [EVT-001, EVT-002, EVT-003]
+    commands: [CMD-001, CMD-002, CMD-003]
+    aggregates: [AGG-001]
+    stories: [US-002, US-003, US-004]
+    requirements: [FR-002, FR-003, FR-004, FR-008, FR-009, NFR-002]
+  - id: CAP-002
+    name: Work progress tracking
+    description: Moving a card between neighbouring columns to reflect progress, enforcing the doing WIP limit and adjacency rule, also under concurrent moves.
+    events: [EVT-004]
+    commands: [CMD-004]
+    aggregates: [AGG-001]
+    stories: [US-005]
+    requirements: [FR-005, FR-006, FR-007, NFR-001]
+  - id: CAP-003
+    name: Board overview
+    description: Showing the whole board on one page and explaining refused actions to the team member. Read-only; produces no domain events.
+    events: []
+    commands: []
+    aggregates: [AGG-001]
+    stories: [US-001, US-006]
+    requirements: [FR-001, FR-010, FR-011, NFR-003]
