@@ -4,15 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-A fresh Go project (module `github.com/adverax/board-demo`, Go 1.26) used for a live demonstration of forge. The only input is the design brief in `docs/board-service.md`; it is frozen, so do not widen its scope. There is no code yet. Update this file once real structure exists.
+A Go project (module `github.com/adverax/board-demo`, Go 1.26) built live with forge from the frozen design brief `docs/board-service.md`; do not widen the brief's scope. The three planned increments are merged on `main` (tags `wave-1`, `wave-2`, `wave-3`): the board aggregate, the JSON API, the embedded web page and the browser suite. Architecture, ADRs (`meta/architecture/decisions/adr/`), design system (`meta/design/`), kanban state (`meta/kanban/`) and release notes (`meta/releases/`) live under `meta/`; open follow-ups are in `meta/kanban/backlog.md`.
 
 ## Commands
 
-- Build: `go build ./...`
-- Test all: `go test ./...`
+Prefer the Makefile (`make help` lists the targets):
+
+- Run: `make run` (serves http://localhost:8080; `PORT=9090 make run` for another port)
+- Build / vet / lint / all three plus tests: `make build`, `go vet ./...`, `make lint`, `make ci`
+- Unit tests: `make test`; with the race detector: `make test-race`
+- Browser tests (headless Chrome through chromedp, needs Chrome; binds ports 8080 and 9090): `make test-e2e`. `make test` excludes `TestE2E_*`.
 - Single test: `go test ./path/to/pkg -run '^TestName$'`
-- Lint/vet: `go vet ./...`
-- Race detector (relevant for the concurrency test): `go test -race ./...`
+- Coverage and dependency audit (used by the kanban gates): `make coverage`, `make audit`
+
+## Code layout
+
+- `cmd/board`: entry point (`PORT`, default 8080; graceful shutdown) and the `TestE2E_*` browser suite.
+- `internal/board`: the Board aggregate. It owns its mutex (ADR-0006), enforces every invariant and has no HTTP imports (ADR-0004). A card's position is its slice index.
+- `internal/httpapi`: the five JSON routes on the standard `ServeMux`, one `writeError` mapping of the refusals to `{"code":...}`, and the page routes (`NewApp`).
+- `web`: the embedded page (plain HTML/CSS/JS, no build step). `web/static/tokens.css` is a verbatim copy of `meta/design/tokens.css` guarded by a test: edit the design tokens, then regenerate the copy (see `web/README.md`).
+- Move refusals are decided in one critical section in this order: `not_found`, `validation_failed`, `invalid_move`, `wip_limit_exceeded` (ADR-0007).
 
 ## Design constraints from the brief
 
