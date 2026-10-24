@@ -1,6 +1,6 @@
 # CARD-002: Card editing and the full API contract
 
-**Status:** blocked
+**Status:** ready
 **Priority:** P1
 **Category:** feature
 **Estimate:** 1c
@@ -17,13 +17,13 @@
 **Depends on:** CARD-001
 **Touches:** internal/board/**.go, internal/httpapi/**.go
 **UI surface:** none
-**Readiness:** 6/7 — gaps: dependencies_resolved
+**Readiness:** 7/7
 **Review score:** —
 **Started:** —
 **Closed:** —
 **Actual:** —
 **Merge commit:** —
-**Blocked by:** readiness — dependencies_resolved
+**Blocked by:** —
 
 ## What to implement
 
@@ -92,7 +92,7 @@ five endpoints of CON-003 are all served by the standard ServeMux.
 - engineering_constraint_coverage — gap_free
 - architecture_traceability — gap_free
 - blocking_decisions_resolved — gap_free
-- dependencies_resolved — gap: dependencies: CARD-001 (status 'blocked' does not resolve) — a declared dependency does not resolve.
+- dependencies_resolved — gap_free
 - design_seed_for_user_facing — gap_free_by_non_applicability: not applicable — the card's own `UI surface:` machine stamp reads `none` (step 6b, FR-061); there is no surface to seed.
 - open_subject_answered — gap_free
 

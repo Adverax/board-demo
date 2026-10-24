@@ -1,6 +1,6 @@
 # CARD-003: The board page and the browser check
 
-**Status:** blocked
+**Status:** ready
 **Priority:** P2
 **Category:** feature
 **Estimate:** 2c
@@ -18,13 +18,13 @@
 **Depends on:** CARD-002
 **Touches:** web/**, cmd/board/**.go, internal/httpapi/**.go, go.mod, go.sum
 **UI surface:** user-facing
-**Readiness:** 6/7 — gaps: dependencies_resolved
+**Readiness:** 7/7
 **Review score:** —
 **Started:** —
 **Closed:** —
 **Actual:** —
 **Merge commit:** —
-**Blocked by:** readiness — dependencies_resolved
+**Blocked by:** —
 
 ## What to implement
 
@@ -105,7 +105,7 @@ blank-title refusal (as the `TestE2E_*` Go tests of the criteria below).
 - engineering_constraint_coverage — gap_free_by_non_applicability: not applicable — no requirement this candidate names declares `engineering_constraints:` and step 6c5 promoted none, so the card format's "omit the section entirely" applies.
 - architecture_traceability — gap_free
 - blocking_decisions_resolved — gap_free
-- dependencies_resolved — gap: dependencies: CARD-002 (status 'blocked' does not resolve) — a declared dependency does not resolve.
+- dependencies_resolved — gap_free
 - design_seed_for_user_facing — gap_free
 - open_subject_answered — gap_free
 
