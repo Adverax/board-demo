@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // Column is one of the three fixed board lanes (INV-005).
@@ -27,6 +28,10 @@ const (
 
 // WIPLimit is the maximum number of cards the doing column holds (INV-002).
 const WIPLimit = 3
+
+// MaxTitleLength is the longest card title, in runes after trimming (INV-001,
+// ASM-0002).
+const MaxTitleLength = 80
 
 // columns lists the board's columns in their fixed order (INV-005); a column's
 // index here is its index in Board.lanes and Snapshot.Lanes.
@@ -95,8 +100,9 @@ func (b *Board) Snapshot() Snapshot {
 	return s
 }
 
-// Add puts a new card at the end of todo. The title is trimmed and must not be
-// blank (INV-001); the description is optional and stored as given.
+// Add puts a new card at the end of todo. The title is trimmed and must be
+// 1..MaxTitleLength runes long (INV-001); the description is optional and
+// stored as given. A refused add changes nothing.
 func (b *Board) Add(title, description string) (Card, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -146,9 +152,10 @@ func (b *Board) Move(id string, to *Column) (Card, error) {
 }
 
 // Edit changes the title and/or the description of a card; a nil argument
-// leaves that field as it is. The card keeps its column and position. A new
-// title is trimmed and must not be blank (INV-001). A refused edit changes
-// nothing.
+// leaves that field as it is (a partial update, ASM-0001). The card keeps its
+// column and position. A new title is trimmed and must be 1..MaxTitleLength
+// runes long (INV-001). The first failing check wins: ErrNotFound, then
+// ErrValidation. A refused edit changes nothing.
 func (b *Board) Edit(id string, title, description *string) (Card, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -173,7 +180,7 @@ func (b *Board) Edit(id string, title, description *string) (Card, error) {
 }
 
 // Delete removes a card; the cards after it in its column shift up by one
-// (INV-004).
+// (INV-004). An unknown id is ErrNotFound and changes nothing.
 func (b *Board) Delete(id string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -214,9 +221,11 @@ func columnIndex(c Column) int {
 	return -1
 }
 
+// validTitle is the one INV-001 rule, shared by Add and Edit: the trimmed
+// title is not empty and at most MaxTitleLength runes (ASM-0002).
 func validTitle(title string) (string, error) {
 	t := strings.TrimSpace(title)
-	if t == "" {
+	if t == "" || utf8.RuneCountInString(t) > MaxTitleLength {
 		return "", ErrValidation
 	}
 	return t, nil

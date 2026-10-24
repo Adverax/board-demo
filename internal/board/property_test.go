@@ -1,13 +1,12 @@
 package board_test
 
 // Property tests, one per invariant of AGG-001 this card touches:
-//   INV-001 title not blank      -> TestPropertyTest_DenseOrder_AnyOperationSequence (model rejects blank titles on add and edit)
+//   INV-001 title 1..80 runes    -> TestPropertyTest_Title_ValidOnAddAndEdit, and TestPropertyTest_DenseOrder_AnyOperationSequence (model rejects blank and over-long titles on add and edit)
 //   INV-002 doing <= WIPLimit    -> TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency, and checked after every step of the model test
 //   INV-003 adjacent moves only  -> TestPropertyTest_DenseOrder_AnyOperationSequence (model refuses non-neighbouring targets)
 //   INV-004 dense order          -> TestPropertyTest_DenseOrder_RandomOperations, TestPropertyTest_DenseOrder_AnyOperationSequence
 //   INV-005 three fixed columns  -> denseViolations, checked after every step
 //   ADR-0006/R1 lock + copy      -> TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy
-// The 80-character half of INV-001 belongs to CARD-002.
 //
 // Go requires test functions to start with "Test"; the traced names
 // (PropertyTest_...) follow the prefix verbatim.
@@ -18,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 
 	"pgregory.net/rapid"
 
@@ -31,7 +31,64 @@ var allColumns = []board.Column{board.Todo, board.Doing, board.Done}
 // readable target (nil).
 var targets = []*board.Column{target(board.Todo), target(board.Doing), target(board.Done), target("archive"), target(""), nil}
 
-var titles = []string{"a", "  padded  ", "", "   ", "Write docs"}
+var titles = []string{"a", "  padded  ", "", "   ", "Write docs",
+	strings.Repeat("x", board.MaxTitleLength), strings.Repeat("я", board.MaxTitleLength+1)}
+
+// wantTitle is the reference INV-001 rule: the trimmed title, valid when it
+// is 1..MaxTitleLength runes long (ASM-0002).
+func wantTitle(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	n := utf8.RuneCountInString(s)
+	return s, n > 0 && n <= board.MaxTitleLength
+}
+
+// EC(INV-001) / FR-008: for any title, Add and Edit accept it exactly when the
+// trimmed title is 1..80 runes, store the trimmed value, and a refusal changes
+// nothing (Edit keeps title, description, column and position).
+func TestPropertyTest_Title_ValidOnAddAndEdit(t *testing.T) {
+	ws := rapid.SampledFrom([]string{"", " ", "\t", "\n", "  \t "})
+	body := rapid.OneOf(
+		rapid.String(),
+		rapid.StringOfN(rapid.RuneFrom([]rune("aя€😀")), board.MaxTitleLength-2, board.MaxTitleLength+2, -1),
+	)
+	rapid.Check(t, func(t *rapid.T) {
+		title := ws.Draw(t, "lead") + body.Draw(t, "body") + ws.Draw(t, "trail")
+		want, ok := wantTitle(title)
+
+		b := board.New()
+		c, err := b.Add(title, "")
+		if ok != (err == nil) || (!ok && !errors.Is(err, board.ErrValidation)) {
+			t.Fatalf("Add(%q) err = %v, want ok=%v", title, err, ok)
+		}
+		if ok && c.Title != want {
+			t.Fatalf("Add stored %q, want %q", c.Title, want)
+		}
+		wantCards := 0
+		if ok {
+			wantCards = 1
+		}
+		if n := len(b.Snapshot().Lanes[0].Cards); n != wantCards {
+			t.Fatalf("todo holds %d cards after Add, want %d", n, wantCards)
+		}
+
+		ids := fill(t, b, 2)
+		before := b.Snapshot()
+		got, err := b.Edit(ids[0], &title, nil)
+		if ok != (err == nil) || (!ok && !errors.Is(err, board.ErrValidation)) {
+			t.Fatalf("Edit(%q) err = %v, want ok=%v", title, err, ok)
+		}
+		if !ok {
+			if !snapshotsEqual(before, b.Snapshot()) {
+				t.Fatalf("refused edit changed the board")
+			}
+			return
+		}
+		old := before.Lanes[0].Cards[len(before.Lanes[0].Cards)-2]
+		if got.Title != want || got.Description != old.Description || got.Column != old.Column || got.Position != old.Position {
+			t.Fatalf("Edit returned %+v, want title %q in place of %+v", got, want, old)
+		}
+	})
+}
 
 func allIDs(s board.Snapshot) []string {
 	var ids []string
@@ -114,10 +171,7 @@ func TestPropertyTest_DenseOrder_AnyOperationSequence(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		b := board.New()
 		m := &model{title: map[string]string{}}
-		trimmed := func(s string) (string, bool) {
-			s = strings.TrimSpace(s)
-			return s, s != ""
-		}
+		trimmed := wantTitle
 		expectErr := func(t *rapid.T, op string, got, want error) {
 			if !errors.Is(got, want) || (want == nil && got != nil) {
 				t.Fatalf("%s: err = %v, want %v", op, got, want)
@@ -329,8 +383,9 @@ func TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency(t *testing.T) {
 
 // ADR-0006/R1: under concurrent Snapshot/Add/Move/Edit/Delete, (a) a snapshot
 // taken earlier never changes, (b) mutating a snapshot never reaches the
-// board, and (c) no update is lost: the settled board holds exactly the cards
-// whose operations succeeded.
+// board, (c) no update is lost: the settled board holds exactly the cards
+// whose operations succeeded, and (d) concurrent edits, valid or refused,
+// leave only INV-001-valid titles.
 func TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		b := board.New()
@@ -357,8 +412,9 @@ func TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy(t *testing.T) {
 				to := rapid.SampledFrom(allColumns).Draw(t, "to")
 				ops[i] = func() { _, _ = b.Move(id, &to) }
 			case 2:
-				title := "edited"
-				ops[i] = func() { _, _ = b.Edit(id, &title, nil) }
+				title := optional(t, "title", titles)
+				desc := optional(t, "desc", titles)
+				ops[i] = func() { _, _ = b.Edit(id, title, desc) }
 			case 3:
 				ops[i] = func() {
 					if b.Delete(id) == nil {
@@ -389,6 +445,9 @@ func TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy(t *testing.T) {
 			for _, c := range l.Cards {
 				if c.Title == "mutated" {
 					t.Fatalf("snapshot mutation reached the board: %+v", c)
+				}
+				if tt, ok := wantTitle(c.Title); !ok || tt != c.Title {
+					t.Fatalf("settled card has an invalid title: %+v", c)
 				}
 				got++
 			}

@@ -45,13 +45,15 @@ type errorJSON struct {
 	Code string `json:"code"`
 }
 
-// New returns the API handler serving the routes of this increment on b.
+// New returns the API handler serving the five CON-003 routes on b.
 func New(b *board.Board) http.Handler {
 	a := &api{board: b}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/board", a.getBoard)
 	mux.HandleFunc("POST /api/cards", a.addCard)
+	mux.HandleFunc("PATCH /api/cards/{id}", a.editCard)
 	mux.HandleFunc("POST /api/cards/{id}/move", a.moveCard)
+	mux.HandleFunc("DELETE /api/cards/{id}", a.deleteCard)
 	return mux
 }
 
@@ -88,6 +90,37 @@ func (a *api) addCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, toJSON(c))
+}
+
+// editCard: body {"title"?: string, "description"?: string}; 200 with the
+// edited card (ADR-0009). A partial update (ASM-0001): an absent or null field
+// stays as it is. A body that cannot be read as an edit (malformed, oversized,
+// a non-string field) is validation_failed; an unknown id is not_found; a
+// title breaking INV-001 is validation_failed and changes nothing.
+func (a *api) editCard(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Title       *string `json:"title"`
+		Description *string `json:"description"`
+	}
+	if err := decode(w, r, &req); err != nil {
+		writeError(w, board.ErrValidation)
+		return
+	}
+	c, err := a.board.Edit(r.PathValue("id"), req.Title, req.Description)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toJSON(c))
+}
+
+// deleteCard: no body; 204 with no body (ADR-0009), or not_found.
+func (a *api) deleteCard(w http.ResponseWriter, r *http.Request) {
+	if err := a.board.Delete(r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // moveCard: body {"to": "<column>"}; 200 with the moved card. A body that
