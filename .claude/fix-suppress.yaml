@@ -13,3 +13,8 @@
   file: "meta/architecture/domain/capabilities.yml"
   reason: "coherent: US-001, US-006 and FR-001, FR-010, FR-011 are read-only/UI concerns with no producing command; merging into CAP-001 would dilute the write path. The guideline is a heuristic and the description declares it read-only"
   dismissed: "2026-10-24"
+- rule: "boundary"
+  pattern: "FR-010 (page controls) placed in CAP-003 while its controls trigger CAP-001 and CAP-002 commands"
+  file: "meta/architecture/domain/capabilities.yml"
+  reason: "requirement placement overlap, not a boundary cut: one bounded context CTX-001, nothing is split across contexts; covered by the earlier CAP-003 dismissal (the page is a read-only projection over the same model)"
+  dismissed: "2026-10-24"
