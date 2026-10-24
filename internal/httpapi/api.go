@@ -1,6 +1,7 @@
 // Package httpapi is the JSON API of the board (COMP-002): the CON-003 routes
 // on the standard net/http ServeMux (ADR-0002), request decoding and the
-// CON-004 error object. Handlers reach cards only through the exported Board
+// CON-004 error object, plus the page route GET / serving the embedded page
+// (NewApp, CON-005). Handlers reach cards only through the exported Board
 // API (ADR-0004/R2); every rule lives in package board.
 package httpapi
 
@@ -46,7 +47,13 @@ type errorJSON struct {
 }
 
 // New returns the API handler serving the five CON-003 routes on b.
+// NewApp (page.go) adds the board page to the same routes.
 func New(b *board.Board) http.Handler {
+	return apiMux(b)
+}
+
+// apiMux registers the five CON-003 routes on a fresh ServeMux.
+func apiMux(b *board.Board) *http.ServeMux {
 	a := &api{board: b}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/board", a.getBoard)

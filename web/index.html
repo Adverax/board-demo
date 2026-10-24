@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team board</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<svg class="icon-sprite" aria-hidden="true">
+  <symbol id="icon-left" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-right" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-edit" viewBox="0 0 16 16"><path d="M3 13v-2.5L10.5 3 13 5.5 5.5 13H3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-delete" viewBox="0 0 16 16"><path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+<div class="app">
+  <header class="app-header">
+    <h1>Team board</h1>
+    <form id="add-form" class="inline-form" novalidate>
+      <input id="add-title" name="title" aria-label="Title" placeholder="Card title" autocomplete="off">
+      <input id="add-description" name="description" aria-label="Description" placeholder="Description (optional)" autocomplete="off">
+      <button id="add-submit" type="submit" class="button-primary">Add card</button>
+    </form>
+  </header>
+  <p id="refusal" class="notice" role="alert" hidden></p>
+  <main id="board" class="board" aria-label="Board" aria-busy="true">
+    <section class="column" data-column="todo" aria-labelledby="column-todo">
+      <div class="column-head"><h2 id="column-todo">todo</h2><span class="count"></span></div>
+      <ul class="cards"></ul>
+    </section>
+    <section class="column" data-column="doing" aria-labelledby="column-doing">
+      <div class="column-head"><h2 id="column-doing">doing</h2><span class="count"></span></div>
+      <ul class="cards"></ul>
+    </section>
+    <section class="column" data-column="done" aria-labelledby="column-done">
+      <div class="column-head"><h2 id="column-done">done</h2><span class="count"></span></div>
+      <ul class="cards"></ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>

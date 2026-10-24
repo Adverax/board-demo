@@ -1,6 +1,6 @@
 // Command board is the board server (COMP-004): it reads PORT (default 8080,
-// CON-006), wires the Board and the HTTP API and serves them until SIGINT or
-// SIGTERM (ADR-0003).
+// CON-006), wires the Board, the HTTP API and the embedded page (CON-005) and
+// serves them until SIGINT or SIGTERM (ADR-0003).
 package main
 
 import (
@@ -16,6 +16,7 @@ import (
 
 	"github.com/adverax/board-demo/internal/board"
 	"github.com/adverax/board-demo/internal/httpapi"
+	"github.com/adverax/board-demo/web"
 )
 
 const (
@@ -31,12 +32,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	h, err := httpapi.NewApp(board.New(), web.Page())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	ln, err := net.Listen("tcp", addr(os.Getenv))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if err := serve(ctx, ln, httpapi.New(board.New())); err != nil {
+	if err := serve(ctx, ln, h); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
