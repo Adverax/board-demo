@@ -108,7 +108,7 @@ func arrange(t fataler, todo, doing, done int) (*board.Board, map[string][]strin
 		return c.ID
 	}
 	mv := func(id string, to board.Column) {
-		if _, err := b.Move(id, to); err != nil {
+		if _, err := b.Move(id, &to); err != nil {
 			t.Fatalf("Move: %v", err)
 		}
 	}
@@ -266,6 +266,34 @@ func TestMoveCard_DoneToTodoRefused(t *testing.T) {
 	}
 }
 
+// ADR-0007/R1: an empty "to" is a present string naming an unknown column, so
+// it is invalid_move, not validation_failed (which means "no readable target").
+func TestMoveCard_EmptyTargetIsInvalidMove(t *testing.T) {
+	b, cols := arrange(t, 1, 0, 0)
+	h := httpapi.New(b)
+	status, raw := do(t, h, http.MethodPost, "/api/cards/"+cols["todo"][0]+"/move", `{"to":""}`)
+	refusal(t, status, raw, http.StatusConflict, "invalid_move")
+	if got := ids(getBoard(t, h), "todo"); !slices.Equal(got, cols["todo"]) {
+		t.Fatalf("todo = %v", got)
+	}
+}
+
+// The 1 MiB body cap holds on the move route too: an oversized body is no
+// readable target (validation_failed), and not_found still wins (ADR-0007).
+func TestMoveCard_OversizedBodyRejected(t *testing.T) {
+	b, cols := arrange(t, 1, 0, 0)
+	h := httpapi.New(b)
+	body := `{"to":"doing","pad":"` + strings.Repeat("a", 1<<20) + `"}`
+	status, raw := do(t, h, http.MethodPost, "/api/cards/"+cols["todo"][0]+"/move", body)
+	refusal(t, status, raw, http.StatusBadRequest, "validation_failed")
+	status, raw = do(t, h, http.MethodPost, "/api/cards/missing/move", body)
+	refusal(t, status, raw, http.StatusNotFound, "not_found")
+	got := getBoard(t, h)
+	if !slices.Equal(ids(got, "todo"), cols["todo"]) || len(ids(got, "doing")) != 0 {
+		t.Fatalf("board = %+v", got)
+	}
+}
+
 // AC-016
 func TestMoveCard_IntoDoingAtTwoSucceeds(t *testing.T) {
 	b, cols := arrange(t, 1, 2, 0)
@@ -361,6 +389,7 @@ var moveBodies = []moveBody{
 	{`{"to":"done"}`, str("done")},
 	{`{"to":"archive"}`, str("archive")},
 	{`{"to":"DOING"}`, str("DOING")},
+	{`{"to":""}`, str("")},
 	{`{"to":5}`, nil},
 	{`{"to":null}`, nil},
 	{`{"to":["doing"]}`, nil},

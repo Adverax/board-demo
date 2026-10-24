@@ -27,9 +27,12 @@ func fill(t fataler, b *board.Board, n int) []string {
 	return ids
 }
 
+// target returns a pointer to a named move target.
+func target(c board.Column) *board.Column { return &c }
+
 func mustMove(t *testing.T, b *board.Board, id string, to board.Column) {
 	t.Helper()
-	if _, err := b.Move(id, to); err != nil {
+	if _, err := b.Move(id, &to); err != nil {
 		t.Fatalf("Move(%s, %s): %v", id, to, err)
 	}
 }
@@ -144,19 +147,20 @@ func TestMove_Refusals(t *testing.T) {
 	cases := []struct {
 		name string
 		id   string
-		to   board.Column
+		to   *board.Column
 		want error
 	}{
-		{"unknown id", "missing", board.Doing, board.ErrNotFound},
-		{"unknown id beats no column", "missing", board.NoColumn, board.ErrNotFound},
-		{"no column", inTodo, board.NoColumn, board.ErrValidation},
-		{"unknown column", inTodo, "archive", board.ErrInvalidMove},
-		{"same column", inTodo, board.Todo, board.ErrInvalidMove},
-		{"same column doing beats full doing", inDoing, board.Doing, board.ErrInvalidMove},
-		{"todo to done", inTodo, board.Done, board.ErrInvalidMove},
-		{"done to todo", inDone, board.Todo, board.ErrInvalidMove},
-		{"todo into full doing", inTodo, board.Doing, board.ErrWIPLimit},
-		{"done into full doing", inDone, board.Doing, board.ErrWIPLimit},
+		{"unknown id", "missing", target(board.Doing), board.ErrNotFound},
+		{"unknown id beats no target", "missing", nil, board.ErrNotFound},
+		{"no target", inTodo, nil, board.ErrValidation},
+		{"unknown column", inTodo, target("archive"), board.ErrInvalidMove},
+		{"empty column name", inTodo, target(""), board.ErrInvalidMove},
+		{"same column", inTodo, target(board.Todo), board.ErrInvalidMove},
+		{"same column doing beats full doing", inDoing, target(board.Doing), board.ErrInvalidMove},
+		{"todo to done", inTodo, target(board.Done), board.ErrInvalidMove},
+		{"done to todo", inDone, target(board.Todo), board.ErrInvalidMove},
+		{"todo into full doing", inTodo, target(board.Doing), board.ErrWIPLimit},
+		{"done into full doing", inDone, target(board.Doing), board.ErrWIPLimit},
 	}
 	before := b.Snapshot()
 	for _, tc := range cases {
@@ -178,11 +182,11 @@ func TestMove_RightAndLeftLandAtEnd(t *testing.T) {
 	b := board.New()
 	ids := fill(t, b, 4)
 	mustMove(t, b, ids[0], board.Doing)
-	c, err := b.Move(ids[1], board.Doing)
+	c, err := b.Move(ids[1], target(board.Doing))
 	if err != nil || c.Column != board.Doing || c.Position != 1 {
 		t.Fatalf("right move = %+v, %v", c, err)
 	}
-	c, err = b.Move(ids[0], board.Todo)
+	c, err = b.Move(ids[0], target(board.Todo))
 	if err != nil || c.Column != board.Todo || c.Position != 2 {
 		t.Fatalf("left move = %+v, %v", c, err)
 	}
@@ -268,7 +272,7 @@ func TestSnapshot_IsACopy(t *testing.T) {
 	s.Lanes[0].Cards = s.Lanes[0].Cards[:0]
 	mustMove(t, b, ids[0], board.Doing)
 	again := b.Snapshot()
-	if len(again.Lanes[0].Cards) != 1 || again.Lanes[0].Cards[0].Title != "card" {
+	if len(again.Lanes[0].Cards) != 1 || len(again.Lanes[1].Cards) != 1 || again.Lanes[1].Cards[0].Title != "card" {
 		t.Fatalf("caller mutation leaked into the board: %+v", again)
 	}
 }

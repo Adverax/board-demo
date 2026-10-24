@@ -25,11 +25,6 @@ const (
 	Done  Column = "done"
 )
 
-// NoColumn is the target of a move request that names no readable column
-// (missing, non-string or malformed). Move refuses it with ErrValidation, after
-// the card lookup, so the ADR-0007 precedence holds in one critical section.
-const NoColumn Column = ""
-
 // WIPLimit is the maximum number of cards the doing column holds (INV-002).
 const WIPLimit = 3
 
@@ -118,11 +113,14 @@ func (b *Board) Add(title, description string) (Card, error) {
 }
 
 // Move moves a card one column left or right; it lands at the end of the
-// target (INV-003, INV-004). The first failing check wins, in the ADR-0007
-// order: ErrNotFound, ErrValidation (NoColumn), ErrInvalidMove (unknown,
-// same or non-neighbouring column), ErrWIPLimit (doing already holds WIPLimit
-// cards, INV-002). A refused move changes nothing.
-func (b *Board) Move(id string, to Column) (Card, error) {
+// target (INV-003, INV-004). A nil to means the request named no readable
+// target (missing, non-string or malformed); any non-nil to is a named target,
+// whatever its value, the empty string included. The first failing check
+// wins, in the ADR-0007 order: ErrNotFound, ErrValidation (to is nil),
+// ErrInvalidMove (unknown, empty, same or non-neighbouring column),
+// ErrWIPLimit (doing already holds WIPLimit cards, INV-002). All checks and
+// the change run in one critical section; a refused move changes nothing.
+func (b *Board) Move(id string, to *Column) (Card, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -130,14 +128,14 @@ func (b *Board) Move(id string, to Column) (Card, error) {
 	if !ok {
 		return Card{}, ErrNotFound
 	}
-	if to == NoColumn {
+	if to == nil {
 		return Card{}, ErrValidation
 	}
-	ti := columnIndex(to)
+	ti := columnIndex(*to)
 	if ti < 0 || (ti != from-1 && ti != from+1) {
 		return Card{}, ErrInvalidMove
 	}
-	if to == Doing && len(b.lanes[ti]) >= WIPLimit {
+	if *to == Doing && len(b.lanes[ti]) >= WIPLimit {
 		return Card{}, ErrWIPLimit
 	}
 

@@ -27,8 +27,9 @@ import (
 var allColumns = []board.Column{board.Todo, board.Doing, board.Done}
 
 // targets includes every outcome class of a move target: the three columns,
-// an unknown name and "no column".
-var targets = []board.Column{board.Todo, board.Doing, board.Done, "archive", board.NoColumn}
+// an unknown name, the empty name (a named target, not an absent one) and no
+// readable target (nil).
+var targets = []*board.Column{target(board.Todo), target(board.Doing), target(board.Done), target("archive"), target(""), nil}
 
 var titles = []string{"a", "  padded  ", "", "   ", "Write docs"}
 
@@ -144,21 +145,21 @@ func TestPropertyTest_DenseOrder_AnyOperationSequence(t *testing.T) {
 				to := rapid.SampledFrom(targets).Draw(t, "to")
 				c, err := b.Move(id, to)
 				from, pos, ok := m.locate(id)
-				ti := slices.Index(allColumns, to)
 				switch {
 				case !ok:
 					expectErr(t, "move", err, board.ErrNotFound)
-				case to == board.NoColumn:
+				case to == nil:
 					expectErr(t, "move", err, board.ErrValidation)
-				case ti < 0 || (ti != from-1 && ti != from+1):
+				case slices.Index(allColumns, *to) < 0 || (slices.Index(allColumns, *to) != from-1 && slices.Index(allColumns, *to) != from+1):
 					expectErr(t, "move", err, board.ErrInvalidMove)
-				case to == board.Doing && len(m.lanes[1]) >= board.WIPLimit:
+				case *to == board.Doing && len(m.lanes[1]) >= board.WIPLimit:
 					expectErr(t, "move", err, board.ErrWIPLimit)
 				default:
 					expectErr(t, "move", err, nil)
+					ti := slices.Index(allColumns, *to)
 					m.lanes[from] = slices.Delete(m.lanes[from], pos, pos+1)
 					m.lanes[ti] = append(m.lanes[ti], id)
-					if c.Column != to || c.Position != len(m.lanes[ti])-1 {
+					if c.Column != *to || c.Position != len(m.lanes[ti])-1 {
 						t.Fatalf("move returned %+v", c)
 					}
 				}
@@ -256,7 +257,7 @@ func TestConcurrency_20SimultaneousMovesIntoDoing(t *testing.T) {
 	ids := fill(t, b, 20)
 	ops := make([]func(), len(ids))
 	for i, id := range ids {
-		ops[i] = func() { _, _ = b.Move(id, board.Doing) }
+		ops[i] = func() { _, _ = b.Move(id, target(board.Doing)) }
 	}
 	polled, settled := runConcurrently(b, ops)
 	maxDoing := 0
@@ -284,12 +285,12 @@ func TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency(t *testing.T) {
 		// Build the starting board through the public API.
 		for range inDone {
 			c, _ := b.Add("x", "")
-			_, _ = b.Move(c.ID, board.Doing)
-			_, _ = b.Move(c.ID, board.Done)
+			_, _ = b.Move(c.ID, target(board.Doing))
+			_, _ = b.Move(c.ID, target(board.Done))
 		}
 		for range inDoing {
 			c, _ := b.Add("x", "")
-			_, _ = b.Move(c.ID, board.Doing)
+			_, _ = b.Move(c.ID, target(board.Doing))
 		}
 		for range inTodo {
 			_, _ = b.Add("x", "")
@@ -305,7 +306,7 @@ func TestPropertyTest_Doing_NeverExceedsWIPUnderConcurrency(t *testing.T) {
 					to = rapid.SampledFrom([]board.Column{board.Todo, board.Done}).Draw(t, "out_of_doing")
 				}
 				if rapid.Bool().Draw(t, "include") {
-					ops = append(ops, func() { _, _ = b.Move(c.ID, to) })
+					ops = append(ops, func() { _, _ = b.Move(c.ID, &to) })
 				}
 			}
 		}
@@ -354,7 +355,7 @@ func TestPropertyTest_Board_ConcurrentOpsSnapshotIsCopy(t *testing.T) {
 				}
 			case 1:
 				to := rapid.SampledFrom(allColumns).Draw(t, "to")
-				ops[i] = func() { _, _ = b.Move(id, to) }
+				ops[i] = func() { _, _ = b.Move(id, &to) }
 			case 2:
 				title := "edited"
 				ops[i] = func() { _, _ = b.Edit(id, &title, nil) }

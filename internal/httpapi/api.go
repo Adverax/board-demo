@@ -91,16 +91,18 @@ func (a *api) addCard(w http.ResponseWriter, r *http.Request) {
 }
 
 // moveCard: body {"to": "<column>"}; 200 with the moved card. A body that
-// cannot be read as a move (malformed, missing or non-string "to") becomes
-// board.NoColumn, so the aggregate reports not_found before validation_failed
-// in one critical section (ADR-0007).
+// cannot be read as a move (malformed, oversized, missing or non-string "to")
+// passes a nil target, so the aggregate reports not_found before
+// validation_failed in one critical section (ADR-0007). Any string "to", the
+// empty string included, is a named target: unknown names are invalid_move.
 func (a *api) moveCard(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		To *string `json:"to"`
 	}
-	to := board.NoColumn
+	var to *board.Column
 	if err := decode(w, r, &req); err == nil && req.To != nil {
-		to = board.Column(*req.To)
+		c := board.Column(*req.To)
+		to = &c
 	}
 	c, err := a.board.Move(r.PathValue("id"), to)
 	if err != nil {
